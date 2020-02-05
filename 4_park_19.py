@@ -19,7 +19,7 @@ first_frame = cv2.resize(first_frame, (1920, 1080), interpolation=cv2.INTER_CUBI
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 
-BasePath = "yolo-coco"
+BasePath = "../yolo-coco"
 BaseConfidence = 0.3  #0.3
 Base_threshold = 0.2  #0.3
 
@@ -152,9 +152,8 @@ def YOLOINIT():
 	LABELS = open(labelsPath).read().strip().split("\n")
 
 	# derive the paths to the YOLO weights and model configuration
-	#weightsPath = os.path.sep.join([BasePath, "yolov3-tiny.weights"])
-        weightsPath = "../yolov3.weights"
-	configPath = os.path.sep.join([BasePath, "yolov3-tiny.cfg"])
+	weightsPath = os.path.sep.join([BasePath, "yolov3.weights"])
+	configPath = os.path.sep.join([BasePath, "yolov3.cfg"])
 
 	# load our YOLO object detector trained on COCO dataset (80 classes)
 	print("[INFO] loading YOLO from disk...")
