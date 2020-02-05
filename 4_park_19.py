@@ -10,10 +10,10 @@ import math
 import matplotlib.pyplot as plt
 
 #global
-Input_Video = "video/19.mp4"
+Input_Video = "../video/19.mp4"
 
 #background substraction 을 위한 이미지.
-first_frame = cv2.imread("image/19.png")
+first_frame = cv2.imread("image/19_park.png")
 first_frame = cv2.resize(first_frame, (1920, 1080), interpolation=cv2.INTER_CUBIC)
 
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
@@ -30,21 +30,19 @@ def main():
 
     YOLOINIT()
 
-    ##=========================================================
-
-    ##View 1
     f_num = 0
-    Detecting_cnt_1 = 0
-    RED_cnt_1 = 0
-    BLUE_cnt_1 = 0
-    initBB_1 = None
-    tracker_1 = None
 
-    Detecting_cnt_2 = 0
-    RED_cnt_2 = 0
-    BLUE_cnt_2 = 0
-    initBB_2 = None
-    tracker_2 = None
+    RED_cnt_1 = 0; BLUE_cnt_1 = 0
+    initBB_1 = None; tracker_1 = None
+
+    RED_cnt_2 = 0; BLUE_cnt_2 = 0
+    initBB_2 = None; tracker_2 = None
+
+    RED_cnt_3 = 0; BLUE_cnt_3 = 0
+    initBB_3 = None; tracker_3 = None
+
+    RED_cnt_4 = 0; BLUE_cnt_4 = 0
+    initBB_4 = None; tracker_4 = None
 
     while(cap.isOpened()):
         f_num =f_num +1
@@ -52,7 +50,9 @@ def main():
 
         (grabbed, frame) = cap.read()
 
-        if f_num % 2== 0 and f_num>0:
+        if f_num % 2== 0:
+            blank_image = np.zeros((64, 1920, 3), np.uint8)
+            frame[0:64, 0:1920] = blank_image
 
             #Background Substraction
             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -79,47 +79,54 @@ def main():
 
 #left counter ----------------------------------------------------------------------------------------------------------------------------------------------
             #Parking Zone Counter
-            vertices = [[[240, 850], [600, 940], [860, 370], [630, 360]]]
+            vertices1 = [[[240, 850], [600, 940], [860, 370], [630, 360]]]
 
 
             tracker_1, initBB_1, RED_cnt_1, BLUE_cnt_1 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_1, frame, tracker_1, Substracted,\
-                                      RED_cnt_1, BLUE_cnt_1, vertices)
+                                      RED_cnt_1, BLUE_cnt_1, vertices1)
 
-            # Red_Line
-            cv2.line(frame, (vertices[0][0][0], vertices[0][0][1]), (vertices[0][3][0], vertices[0][3][1]), (0, 0, 255), 2)
-            cv2.putText(frame, str(RED_cnt_1), (vertices[0][0][0], vertices[0][0][1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
-
-            # Blue_Line
-            cv2.line(frame, (vertices[0][1][0], vertices[0][1][1]), (vertices[0][2][0], vertices[0][2][1]), (255, 0, 0), 2)
-            cv2.putText(frame, str(BLUE_cnt_1), (vertices[0][1][0], vertices[0][1][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
+            draw_line(frame, vertices1, RED_cnt_1, BLUE_cnt_1)
 
             # Detecting Zone
-            pts_1 = detecting_zone(vertices)
+            pts_1 = detecting_zone(vertices1)
             cv2.polylines(frame, [pts_1], True, (0, 255, 0), 2)
 
 #right counter ----------------------------------------------------------------------------------------------------------------------------------------------
-            vertices1 = [[[1300, 400], [1100, 400], [1400, 900], [1700, 850]]]
+            vertices2 = [[[1300, 400], [1100, 400], [1400, 900], [1700, 850]]]
 
             tracker_2, initBB_2, RED_cnt_2, BLUE_cnt_2 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_2, frame, tracker_2, Substracted,\
-                                      RED_cnt_2, BLUE_cnt_2, vertices1)
+                                      RED_cnt_2, BLUE_cnt_2, vertices2)
 
-            # Red_Line
-            cv2.line(frame, (vertices1[0][0][0], vertices1[0][0][1]), (vertices1[0][3][0], vertices1[0][3][1]), (0, 0, 255), 2)
-            cv2.putText(frame, str(RED_cnt_2), (vertices1[0][0][0], vertices1[0][0][1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
-
-            # Blue_Line
-            cv2.line(frame, (vertices1[0][1][0], vertices1[0][1][1]), (vertices1[0][2][0], vertices1[0][2][1]), (255, 0, 0), 2)
-            cv2.putText(frame, str(BLUE_cnt_2), (vertices1[0][1][0], vertices1[0][1][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
+            draw_line(frame, vertices2, RED_cnt_2, BLUE_cnt_2)
 
             # Detecting Zone
-            pts_2 = detecting_zone(vertices1)
+            pts_2 = detecting_zone(vertices2)
             cv2.polylines(frame, [pts_2], True, (0, 255, 0), 2)
 
+#right counter ----------------------------------------------------------------------------------------------------------------------------------------------
+            vertices3 = [[[1300, 400], [1100, 400], [1400, 900], [1700, 850]]]
 
+            tracker_3, initBB_3, RED_cnt_3, BLUE_cnt_3 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_3, frame, tracker_3, Substracted,\
+                                      RED_cnt_3, BLUE_cnt_3, vertices3)
 
-            #프레임 레터박스
-            blank_image = np.zeros((64, 1920, 3), np.uint8)
-            frame[0:64, 0:1920] = blank_image
+            draw_line(frame, vertices3, RED_cnt_3, BLUE_cnt_3)
+
+            # Detecting Zone
+            pts_3 = detecting_zone(vertices3)
+            cv2.polylines(frame, [pts_3], True, (0, 255, 0), 2)
+
+#right counter ----------------------------------------------------------------------------------------------------------------------------------------------
+            vertices4 = [[[1300, 400], [1100, 400], [1400, 900], [1700, 850]]]
+
+            tracker_4, initBB_4, RED_cnt_4, BLUE_cnt_4 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_4, frame, tracker_4, Substracted,\
+                                      RED_cnt_4, BLUE_cnt_4, vertices4)
+
+            draw_line(frame, vertices4, RED_cnt_4, BLUE_cnt_4)
+
+            # Detecting Zone
+            pts_4 = detecting_zone(vertices4)
+            cv2.polylines(frame, [pts_4], True, (0, 255, 0), 2)
+
 
             frame = cv2.resize(frame, (1280, 720), interpolation=cv2.INTER_CUBIC) #1920, 1080 -> 1280,720
             #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
@@ -145,7 +152,8 @@ def YOLOINIT():
 	LABELS = open(labelsPath).read().strip().split("\n")
 
 	# derive the paths to the YOLO weights and model configuration
-	weightsPath = os.path.sep.join([BasePath, "yolov3-tiny.weights"])
+	#weightsPath = os.path.sep.join([BasePath, "yolov3-tiny.weights"])
+        weightsPath = "../yolov3.weights"
 	configPath = os.path.sep.join([BasePath, "yolov3-tiny.cfg"])
 
 	# load our YOLO object detector trained on COCO dataset (80 classes)
@@ -363,6 +371,15 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()
     return tracker, initBB,RED_cnt, BLUE_cnt
+
+def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
+    # Red_Line
+    cv2.line(frame, (vertices[0][0][0], vertices[0][0][1]), (vertices[0][3][0], vertices[0][3][1]), (0, 0, 255), 2)
+    cv2.putText(frame, "IN : " + str(RED_cnt), (vertices[0][0][0], vertices[0][0][1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+
+    # Blue_Line
+    cv2.line(frame, (vertices[0][1][0], vertices[0][1][1]), (vertices[0][2][0], vertices[0][2][1]), (255, 0, 0), 2)
+    cv2.putText(frame, "OUT : " + str(BLUE_cnt), (vertices[0][1][0], vertices[0][1][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
 
 def detecting_zone(vertices):
     # Detecting Zone
