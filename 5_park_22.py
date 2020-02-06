@@ -10,7 +10,7 @@ import math
 import matplotlib.pyplot as plt
 
 #global
-Input_Video = "../video/22-1.mp4"
+Input_Video = "../video/22-2.mp4"
 
 #background substraction 을 위한 이미지.
 first_frame = cv2.imread("image/22.png")
@@ -66,7 +66,7 @@ def main():
         temp_r_3=RED_cnt_3; temp_b_3=BLUE_cnt_3
         temp_r_4=RED_cnt_4; temp_b_4=BLUE_cnt_4
 
-        if f_num % 1 == 0:
+        if f_num % 2== 0:
             blank_image = np.zeros((64, 1920, 3), np.uint8)
             frame[0:64, 0:1920] = blank_image
             park_cnt = [l_up,l_down,r_up,r_down]
@@ -81,47 +81,51 @@ def main():
 
             idxs, boxes, classIDs, confidences = YOLO_BOX_INFO(frame, layerOutputs, BaseConfidence, Base_threshold)
 
+            #car detecting point
             Vehicle_x = []; Vehicle_y = []; Vehicle_w = []; Vehicle_h = []
             Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
 
-            #차량 포인트 그리기
+            #car detecting bounding box
             Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
-
-
+            
+            #left up
             tracker_1, initBB_1, RED_cnt_1, BLUE_cnt_1 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_1, frame, tracker_1, Substracted,\
                                       RED_cnt_1, BLUE_cnt_1, vertices1)
             l_up, temp_r_1, temp_b_1 = park_count(park_cnt[0], temp_r_1, temp_b_1, RED_cnt_1, BLUE_cnt_1)
 
-
+            #left down
             tracker_2, initBB_2, RED_cnt_2, BLUE_cnt_2 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_2, frame, tracker_2, Substracted,\
                                       RED_cnt_2, BLUE_cnt_2, vertices2)
             l_down, temp_r_2, temp_b_2 = park_count(park_cnt[1], temp_r_2, temp_b_2, RED_cnt_2, BLUE_cnt_2)
 
+            #right up
             tracker_3, initBB_3, RED_cnt_3, BLUE_cnt_3 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_3, frame, tracker_3, Substracted,\
                                       RED_cnt_3, BLUE_cnt_3, vertices3)
             r_up, temp_r_2, temp_b_2 = park_count(park_cnt[2], temp_r_3, temp_b_3, RED_cnt_3, BLUE_cnt_3)
 
+            #right down
             tracker_4, initBB_4, RED_cnt_4, BLUE_cnt_4 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_4, frame, tracker_4, Substracted,\
                                       RED_cnt_4, BLUE_cnt_4, vertices4)
             r_down, temp_r_2, temp_b_2 = park_count(park_cnt[3], temp_r_4, temp_b_4, RED_cnt_4, BLUE_cnt_4)
-
 
             #draw lines
             for i in range(0,4):
                 draw_line(frame, vertice[i], RED_cnt[i], BLUE_cnt[i])
                 pts = detecting_zone(vertice[i])
                 cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
+            
 
-
-            frame = cv2.resize(frame, (1280, 720), interpolation=cv2.INTER_CUBIC) #1920, 1080 -> 1280,720
+            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_CUBIC) #1920, 1080 -> 1280,720 -> 960, 540
             #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
             fps.update()
             fps.stop()
-            cv2.putText(frame, "FPS : " + "{:.2f}".format(fps.fps()), (25, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 2)
+            #text at upper frame
+            cv2.putText(frame, "FPS : " + "{:.2f}".format(fps.fps()), (25, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
             cv2.putText(frame, pos[0]+": {} / ".format(park_cnt[0])+pos[1]+": {} / ".format(park_cnt[1])+
-                                      pos[2]+": {} / ".format(park_cnt[2])+pos[3]+": {}".format(park_cnt[3]), (400, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8,(200, 200, 200), 2)
-            cv2.putText(frame, "Frame : " + "{}".format(f_num), (1000, 30), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 2)
+                                      pos[2]+": {} / ".format(park_cnt[2])+pos[3]+": {}".format(park_cnt[3]), (270, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
+            cv2.putText(frame, "Frame : " + "{}".format(f_num), (800, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
+
             cv2.imshow("frame", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

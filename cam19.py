@@ -21,6 +21,8 @@ BasePath = "../yolo-coco"
 BaseConfidence = 0.3  #0.3
 Base_threshold = 0.2  #0.3
 
+frame = None
+
 def main():
     fps = FPS().start()
     cap = cv2.VideoCapture(Input_Video)
@@ -109,7 +111,7 @@ def main():
                 cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
             
 
-            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_CUBIC) #1920, 1080 -> 1280,720 -> 960, 540
+            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_CUBIC) #1920, 1080 -> 1280,720
             #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
             fps.update()
@@ -121,12 +123,8 @@ def main():
                                       pos[2]+": {} / ".format(park_cnt[2])+pos[3]+": {}".format(park_cnt[3]), (270, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
             cv2.putText(frame, "Frame : " + "{}".format(f_num), (800, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
 
-            cv2.imshow("frame", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    return
+    return frame
 
 def YOLOINIT():
 	# load the COCO class labels our YOLO model was trained on
