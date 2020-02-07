@@ -1,19 +1,29 @@
 import cv2
-import cam19, cam22
+import os.path
 
-lot = cv2.imread("image/map.png")
+FIFO_FILENAME = './cam19'
 
 def main():
-	global lot
+	frame = cv2.imread("image/map.png")
+	#if os.path.exists(FIFO_FILENAME):
+	fp_fifo = open(FIFO_FILENAME, "r")
+	print('1')
+	data = fp_fifo.read()
+	print('2')
+	print(data)
 
-	_24_25()
-	_28_29()
+	_24_25(frame)
+	_28_29(frame)
+	frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_CUBIC)
 
-	lot = cv2.resize(lot, (960, 540), interpolation=cv2.INTER_CUBIC)
-	cv2.imshow('map', lot)
-	cv2.waitKey(0)
+	while True:
+		cv2.imshow('map', frame)
+		if cv2.waitKey(1) & 0xFF == ord('q'):
+			break
+	
 
-def _24_25():
+
+def _24_25(frame):
 	#width = 20, height = 22, length = 27
 	A24 = [(50,53), (70,75), 'A24'] 
 	A25 = [(77,53), (97,75), 'A25'] 
@@ -26,22 +36,22 @@ def _24_25():
 	down = [C24, D24, C25, D25]
 	up = [A24, B24, A25, B25]
 
-	nemo(lot, up, down)
+	nemo(frame, up, down)
 
-def _28_29():
+def _28_29(frame):
 	#width = 20, height = 22, length = 27
-	A28 = [(181,53), (201,75), 'A28'] 
-	A29 = [(208,53), (228,75), 'A29'] 
-	B28 = [(181,96), (201,118), 'B28'] 
-	B29 = [(208,96), (228,118), 'B29'] 
-	C28 = [(181,117), (201,139), 'C28']
-	C29 = [(208,117), (228,139), 'C29']
-	D28 = [(181,160), (201,182), 'D28']
-	D29 = [(208,160), (228,182), 'D29']
+	A28 = [(154,53), (174,75), 'A28'] 
+	A29 = [(181,53), (201,75), 'A29'] 
+	B28 = [(154,96), (174,118), 'B28'] 
+	B29 = [(181,96), (201,118), 'B29'] 
+	C28 = [(154,117), (174,139), 'C28']
+	C29 = [(181,117), (201,139), 'C29']
+	D28 = [(154,160), (174,182), 'D28']
+	D29 = [(181,160), (201,182), 'D29']
 	down = [C28, D28, C29, D29]
 	up = [A28, B28, A29, B29]
 
-	nemo(lot, up, down)
+	nemo(frame, up, down)
 
 
 

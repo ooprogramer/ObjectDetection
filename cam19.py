@@ -8,6 +8,10 @@ import time
 import os
 import math
 import matplotlib.pyplot as plt
+import os.path
+
+
+FIFO_FILENAME = './cam19'
 
 Input_Video = "../video/19.mp4"
 
@@ -20,8 +24,6 @@ first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 BasePath = "../yolo-coco"
 BaseConfidence = 0.3  #0.3
 Base_threshold = 0.2  #0.3
-
-frame = None
 
 def main():
     fps = FPS().start()
@@ -43,6 +45,14 @@ def main():
     RED_cnt_4 = 0; BLUE_cnt_4 = 0
     initBB_4 = None; tracker_4 = None
 
+    if os.path.exists(FIFO_FILENAME):
+        print("already exist")
+        fp_fifo = open(FIFO_FILENAME, "w")
+    else:
+        print("not exist")
+        os.mkfifo(FIFO_FILENAME)
+        fp_fifo = open(FIFO_FILENAME, "w")
+
     #hyper parameter
     vertices1 = [[[650, 350], [770, 350], [850, 230], [770, 230]]]	# left-up / c25
     vertices2 = [[[170, 880], [350, 980], [730, 390], [620, 380]]]	# left-down / c24
@@ -50,6 +60,8 @@ def main():
     vertices4 = [[[1310, 390], [1190, 390], [1540, 900], [1730, 880]]]	# right-down / d24
     pos=['C25','C24','D25','D24']
     r_up=0; r_down=0; l_up=0; l_down=0;
+
+
 
     while(cap.isOpened()):
         f_num =f_num +1
@@ -109,22 +121,28 @@ def main():
                 draw_line(frame, vertice[i], RED_cnt[i], BLUE_cnt[i])
                 pts = detecting_zone(vertice[i])
                 cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
-            
-
-            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_CUBIC) #1920, 1080 -> 1280,720
-            #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
             fps.update()
             fps.stop()
 
             #text at upper frame
-            cv2.putText(frame, "FPS : " + "{:.2f}".format(fps.fps()), (25, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
+            cv2.putText(frame, "FPS : " + "{:.2f}".format(fps.fps()), (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
             cv2.putText(frame, pos[0]+": {} / ".format(park_cnt[0])+pos[1]+": {} / ".format(park_cnt[1])+
-                                      pos[2]+": {} / ".format(park_cnt[2])+pos[3]+": {}".format(park_cnt[3]), (270, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
-            cv2.putText(frame, "Frame : " + "{}".format(f_num), (800, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(200, 200, 200), 2)
+                                      pos[2]+": {} / ".format(park_cnt[2])+pos[3]+": {}".format(park_cnt[3]), (450, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
+            cv2.putText(frame, "Frame : " + "{}".format(f_num), (1500, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
 
+            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_AREA) #1920, 1080 -> 1280,720 -> 960, 540
+            #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
-    return frame
+            cv2.imshow("frame", frame)
+            if f_num == 100:
+                fp_fifo.write(str(pos))
+                fp_fifo.write("\n")
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    return
+
 
 def YOLOINIT():
 	# load the COCO class labels our YOLO model was trained on
@@ -164,7 +182,7 @@ def YOLO_Detect(frame):
 	layerOutputs = net.forward(ln)
 	end = time.time()
 
-	print("[INFO] {:.6f} seconds".format(end - start))
+	#print("[INFO] {:.6f} seconds".format(end - start))
 	return layerOutputs,start,end
 #end YOLO_Detect()
 
@@ -365,11 +383,11 @@ def substraction(frame):
 def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
     # Red_Line
     cv2.line(frame, (vertices[0][0][0], vertices[0][0][1]), (vertices[0][3][0], vertices[0][3][1]), (0, 0, 255), 2)
-    cv2.putText(frame, "IN : " + str(RED_cnt), (vertices[0][0][0], vertices[0][0][1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+    cv2.putText(frame, "IN : " + str(RED_cnt), (vertices[0][0][0], vertices[0][0][1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
     # Blue_Line
     cv2.line(frame, (vertices[0][1][0], vertices[0][1][1]), (vertices[0][2][0], vertices[0][2][1]), (255, 0, 0), 2)
-    cv2.putText(frame, "OUT : " + str(BLUE_cnt), (vertices[0][1][0], vertices[0][1][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
+    cv2.putText(frame, "OUT : " + str(BLUE_cnt), (vertices[0][1][0], vertices[0][1][1] + 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
 def detecting_zone(vertices):
     # Detecting Zone
