@@ -1,34 +1,31 @@
 #import
 import cv2
 import numpy as np
-from colors import *
 import imutils
 from imutils.video import FPS
 import time
 import os
 import math
 import matplotlib.pyplot as plt
+import csv
 
-#global
+
 Input_Video = "../video/22-2.mp4"
+f = open('cam22.csv', 'w')
 
-#background substraction 을 위한 이미지.
+#background image
 first_frame = cv2.imread("image/22.png")
-first_frame = cv2.resize(first_frame, (1920, 1080), interpolation=cv2.INTER_CUBIC)
-
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 
+#yolo setting
 BasePath = "../yolo-coco"
 BaseConfidence = 0.3  #0.3
 Base_threshold = 0.2  #0.3
 
-
 def main():
     fps = FPS().start()
-
     cap = cv2.VideoCapture(Input_Video)
-
     YOLOINIT()
 
     f_num = 0
@@ -51,9 +48,11 @@ def main():
     vertices3 = [[[1140, 230], [1080, 230], [1150, 330], [1240, 330]]]	#right-up / D29
     vertices4 = [[[1270, 360], [1170, 360], [1450, 800], [1660, 800]]]	#right-down / D28
     pos = ['C29','C28','D29','D28']
-    r_up=0; r_down=0; l_up=0; l_down=0;
+    l_up=0; l_down=0; r_up=0; r_down=3;
 
     while(cap.isOpened()):
+        f = open('cam22.csv', 'w')
+        wr = csv.writer(f, delimiter=' ')
         f_num =f_num +1
         #print("F : ", f_num)
 
@@ -125,9 +124,12 @@ def main():
             #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
             cv2.imshow("frame", frame)
+            wr.writerow([park_cnt[0], park_cnt[1], park_cnt[2], park_cnt[3]])
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+    f.close()
+    cap.release()
 
     return
 
@@ -243,7 +245,7 @@ def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
     if len(Vehicle_x) > 0:
         for i in range(0, len(Vehicle_x), 1):
             cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
-            cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
+            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
 #end func
 
 
@@ -345,14 +347,14 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     RED_cnt = RED_cnt + 1
                     # initBB,lastBB, tracker 초기화
                     cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), COLOR_RED, 2)
+                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()
 
                 if intersect(initBB_xy, Matched_xy, BLUE_line_start_xy, BLUE_line_end_xy):
                     BLUE_cnt = BLUE_cnt + 1
                     cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), COLOR_RED, 2)
+                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
                     # initBB,lastBB, tracker 초기화
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()

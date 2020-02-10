@@ -1,19 +1,17 @@
 #import
 import cv2
 import numpy as np
-from colors import *
 import imutils
 from imutils.video import FPS
 import time
 import os
 import math
 import matplotlib.pyplot as plt
-import os.path
+import csv
 
-
-FIFO_FILENAME = './cam19'
 
 Input_Video = "../video/19.mp4"
+f = open('cam19.csv', 'w')
 
 #background image
 first_frame = cv2.imread("image/19_park.png")
@@ -29,6 +27,7 @@ def main():
     fps = FPS().start()
     cap = cv2.VideoCapture(Input_Video)
     YOLOINIT()
+    
 
     f_num = 0
 
@@ -45,25 +44,17 @@ def main():
     RED_cnt_4 = 0; BLUE_cnt_4 = 0
     initBB_4 = None; tracker_4 = None
 
-    if os.path.exists(FIFO_FILENAME):
-        print("already exist")
-        fp_fifo = open(FIFO_FILENAME, "w")
-    else:
-        print("not exist")
-        os.mkfifo(FIFO_FILENAME)
-        fp_fifo = open(FIFO_FILENAME, "w")
-
     #hyper parameter
     vertices1 = [[[650, 350], [770, 350], [850, 230], [770, 230]]]	# left-up / c25
     vertices2 = [[[170, 880], [350, 980], [730, 390], [620, 380]]]	# left-down / c24
     vertices3 = [[[1160, 230], [1080, 230], [1190, 370], [1300, 370]]]	# right-up / d25
     vertices4 = [[[1310, 390], [1190, 390], [1540, 900], [1730, 880]]]	# right-down / d24
     pos=['C25','C24','D25','D24']
-    r_up=0; r_down=0; l_up=0; l_down=0;
-
-
+    l_up=2; l_down=1; r_up=2; r_down=2;
 
     while(cap.isOpened()):
+        f = open('cam19.csv', 'w')
+        wr = csv.writer(f, delimiter=' ')
         f_num =f_num +1
 
         (grabbed, frame) = cap.read()
@@ -135,12 +126,14 @@ def main():
             #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
             cv2.imshow("frame", frame)
-            if f_num == 100:
-                fp_fifo.write(str(pos))
-                fp_fifo.write("\n")
+            wr.writerow([park_cnt[0], park_cnt[1], park_cnt[2], park_cnt[3]])
+            
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+    f.close()
+    cap.release()
+    
     return
 
 
@@ -253,7 +246,7 @@ def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
     if len(Vehicle_x) > 0:
         for i in range(0, len(Vehicle_x), 1):
             cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
-            cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
+            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
 #end func
 
 
@@ -355,14 +348,14 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     RED_cnt = RED_cnt + 1
                     # initBB,lastBB, tracker 초기화
                     cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), COLOR_RED, 2)
+                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()
 
                 if intersect(initBB_xy, Matched_xy, BLUE_line_start_xy, BLUE_line_end_xy):
                     BLUE_cnt = BLUE_cnt + 1
                     cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), COLOR_RED, 2)
+                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
                     # initBB,lastBB, tracker 초기화
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()

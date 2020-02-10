@@ -1,7 +1,6 @@
 #import
 import cv2
 import numpy as np
-from colors import *
 import imutils
 from imutils.video import FPS
 import time
@@ -338,14 +337,14 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     RED_cnt = RED_cnt + 1
                     # initBB,lastBB, tracker 초기화
                     cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), COLOR_RED, 2)
+                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()
 
                 if intersect(initBB_xy, Matched_xy, BLUE_line_start_xy, BLUE_line_end_xy):
                     BLUE_cnt = BLUE_cnt + 1
                     cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), COLOR_RED, 2)
+                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
                     # initBB,lastBB, tracker 초기화
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()
