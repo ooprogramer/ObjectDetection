@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import csv
 
 
-Input_Video = "../video/22-2.mp4"
+Input_Video = "../video/22.mp4"
 f = open('cam22.csv', 'w')
 
 #background image
@@ -26,7 +26,6 @@ Base_threshold = 0.2  #0.3
 def main():
     fps = FPS().start()
     cap = cv2.VideoCapture(Input_Video)
-    YOLOINIT()
 
     f_num = 0
 
@@ -48,7 +47,11 @@ def main():
     vertices3 = [[[1140, 230], [1080, 230], [1150, 330], [1240, 330]]]	#right-up / D29
     vertices4 = [[[1270, 360], [1170, 360], [1450, 800], [1660, 800]]]	#right-down / D28
     pos = ['C29','C28','D29','D28']
-    l_up=0; l_down=0; r_up=0; r_down=3;
+    l_up=0; l_down=0; r_up=0; r_down=0;
+    (grabbed, frame) = cap.read()
+    l_up, l_down, r_up, r_down = preprocess(frame)
+
+    YOLOTINYINIT()
 
     while(cap.isOpened()):
         f = open('cam22.csv', 'w')
@@ -63,11 +66,15 @@ def main():
         temp_r_3=RED_cnt_3; temp_b_3=BLUE_cnt_3
         temp_r_4=RED_cnt_4; temp_b_4=BLUE_cnt_4
 
+        if (l_up<0 or l_up>3 or l_down<0 or l_down>3 or r_up<0 or r_up>3 or r_down<0 or r_down>3):
+            l_up, l_down, r_up, r_down = preprocess(frame)
+            YOLOTINYINIT()
+
         if f_num % 2== 0:
             blank_image = np.zeros((64, 1920, 3), np.uint8)
             frame[0:64, 0:1920] = blank_image
-            park_cnt = [l_up,l_down,r_up,r_down]
 
+            park_cnt = [l_up,l_down,r_up,r_down]
             RED_cnt = [RED_cnt_1, RED_cnt_2, RED_cnt_3, RED_cnt_4]
             BLUE_cnt = [BLUE_cnt_1, BLUE_cnt_2, BLUE_cnt_3, BLUE_cnt_4]
             vertice = [vertices1, vertices2, vertices3, vertices4]
@@ -143,8 +150,8 @@ def YOLOINIT():
 	LABELS = open(labelsPath).read().strip().split("\n")
 
 	# derive the paths to the YOLO weights and model configuration
-	weightsPath = os.path.sep.join([BasePath, "yolov3-tiny.weights"])
-	configPath = os.path.sep.join([BasePath, "yolov3-tiny.cfg"])
+	weightsPath = os.path.sep.join([BasePath, "yolov3.weights"])
+	configPath = os.path.sep.join([BasePath, "yolov3.cfg"])
 
 	# load our YOLO object detector trained on COCO dataset (80 classes)
 	print("[INFO] loading YOLO from disk...")
@@ -162,7 +169,25 @@ def YOLOINIT():
 	(W, H) = (None, None)
 #end YOLOINIT()
 
+def YOLOTINYINIT():
+	labelsPath = os.path.sep.join([BasePath, "coco.names"])
 
+	global LABELS
+	LABELS = open(labelsPath).read().strip().split("\n")
+
+	weightsPath = os.path.sep.join([BasePath, "yolov3-tiny.weights"])
+	configPath = os.path.sep.join([BasePath, "yolov3-tiny.cfg"])
+
+	print("[INFO] loading YOLO_TINY from disk...")
+	global net
+	net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
+
+	global ln
+	ln = net.getLayerNames()
+	ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+
+	(W, H) = (None, None)
+#end YOLOINIT()
 
 def YOLO_Detect(frame):
 	# construct a blob from the input frame and then perform a forward
@@ -360,6 +385,47 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     tracker = cv2.TrackerCSRT_create()
 
     return tracker, initBB,RED_cnt, BLUE_cnt
+
+def preprocess(frame):
+    YOLOINIT()
+    #frame = first_frame
+    a = frame[150:330, 400:750]
+    b = frame[300:800, 0:600]
+    c = frame[170:330, 1080:1500]
+    d = frame[250:800, 1280:1920]
+    area = [a,b,c,d]
+    num_a=0;num_b=0;num_c=0;num_d=0;
+    num = [num_a,num_b,num_c,num_d]
+    for i in range(0,4):
+        num[i] = car_number(area[i])
+
+    #cv2.imshow('c',c)
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+    """
+    cv2.imshow('a',a)
+    cv2.waitKey(0)
+    cv2.imshow('b',b)
+    cv2.waitKey(0)
+    cv2.imshow('c',c)
+    cv2.waitKey(0)
+    cv2.imshow('d',d)
+    cv2.waitKey(0)
+    """
+    return num[0], num[1], num[2], num[3]
+
+def car_number(frame):
+    layerOutputs, start, end = YOLO_Detect(frame) #yolo detection
+
+    idxs, boxes, classIDs, confidences = YOLO_BOX_INFO(frame, layerOutputs, BaseConfidence, Base_threshold) #detected object info
+    
+    Vehicle_x = []; Vehicle_y = []; Vehicle_w = []; Vehicle_h = []
+    Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+
+    Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+    
+    number = len(idxs)
+    return number
 
 def substraction(frame):
     #Background Substraction

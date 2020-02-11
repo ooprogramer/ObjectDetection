@@ -25,6 +25,7 @@ def main():
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
 	f_19.close()
+	f_22.close()
 
 
 #left-up -> left-down -> right-up -> right-down
@@ -104,10 +105,10 @@ def _28_29(frame):
 
 def nemo(frame, up, down):
 	for i in down:
-		cv2.rectangle(frame, i[0], i[1], (200,200,200), 2)
+		sub_nemo(frame, i)
 		text_down(i, frame)
 	for i in up:
-		cv2.rectangle(frame, i[0], i[1], (200,200,200), 2)
+		sub_nemo(frame, i)
 		text_up(i, frame)
 
 def text_down(space, frame):
@@ -118,19 +119,24 @@ def text_up(space, frame):
 	cv2.putText(frame, str(space[2]), (space[0][0], space[0][1]-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1) #-> big
 	#cv2.putText(frame, str(space[2]), (space[0][0], space[0][1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1) #-> small
 
+def sub_nemo(frame, rec):
+	cv2.rectangle(frame, rec[0], rec[1], (0,0,0), -1)
+	cv2.rectangle(frame, rec[0], rec[1], (200,200,200), 2)
 
 def count(frame, i, car, area, loc):
 	up_down = 0
 	if loc == 'down':
 		up_down = 1
 	abcd = area[up_down]
-	
+
 	if car == '3':
-		cv2.rectangle(frame, abcd[i][0], abcd[i][1], (200,200,200), -1)
+		cv2.rectangle(frame, (abcd[i][0][0]+4, abcd[i][0][1]+4), (abcd[i][1][0]-4, abcd[i][1][1]-4), (200,200,200), -1)
 	elif car == '2': # small -> 13 / big -> 32
-		cv2.rectangle(frame, abcd[i][0], (abcd[i][0][0]+32, abcd[i][1][1]), (200,200,200), -1)
+		sub_nemo(frame, abcd[i])
+		cv2.rectangle(frame, (abcd[i][0][0]+4, abcd[i][0][1]+4), (abcd[i][0][0]+31, abcd[i][1][1]-4), (200,200,200), -1)
 	elif car == '1': # small -> 7 / big -> 16
-		cv2.rectangle(frame, abcd[i][0], (abcd[i][0][0]+16, abcd[i][1][1]), (200,200,200), -1)
+		sub_nemo(frame, abcd[i])
+		cv2.rectangle(frame, (abcd[i][0][0]+4, abcd[i][0][1]+4), (abcd[i][0][0]+15, abcd[i][1][1]-4), (200,200,200), -1)
 
 if __name__ == '__main__':
     time.sleep(1)

@@ -9,7 +9,7 @@ import math
 import matplotlib.pyplot as plt
 
 #global
-Input_Video = "../video/22-2.mp4"
+Input_Video = "../video/22.mp4"
 
 #background substraction 을 위한 이미지.
 first_frame = cv2.imread("image/22.png")
@@ -22,11 +22,51 @@ BasePath = "../yolo-coco"
 BaseConfidence = 0.3  #0.3
 Base_threshold = 0.2  #0.3
 
+def preprocess():
+    YOLOINIT()
+    frame = first_frame
+    d = frame[350:800, 1280:1920]
+    c = frame[170:330, 1180:1500]
+    a = frame[150:330, 280:750]
+    b = frame[300:800, 0:600]
+    area = [a,b,c,d]
+    num_a=0;num_b=0;num_c=0;num_d=0;
+    num = [num_a,num_b,num_c,num_d]
+    for i in range(0,4):
+        num[i] = car_number(area[i])
+
+    cv2.imshow('a',a)
+    cv2.waitKey(0)
+    cv2.imshow('b',b)
+    cv2.waitKey(0)
+    cv2.imshow('c',c)
+    cv2.waitKey(0)
+    cv2.imshow('d',d)
+    cv2.waitKey(0)
+    print(num)
+    
+
+
+
+def car_number(frame):
+    layerOutputs, start, end = YOLO_Detect(frame) #yolo detection
+
+    idxs, boxes, classIDs, confidences = YOLO_BOX_INFO(frame, layerOutputs, BaseConfidence, Base_threshold) #detected object info
+
+    Vehicle_x = []; Vehicle_y = []; Vehicle_w = []; Vehicle_h = []
+    Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+
+    Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+
+    number = len(idxs)
+    return number
 
 def main():
     fps = FPS().start()
 
     cap = cv2.VideoCapture(Input_Video)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    writer = cv2.VideoWriter('../video/22.avi', fourcc, 10.0, (1920,1080))
 
     YOLOINIT()
 
@@ -120,14 +160,17 @@ def main():
                                       pos[2]+": {} / ".format(park_cnt[2])+pos[3]+": {}".format(park_cnt[3]), (450, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
             cv2.putText(frame, "Frame : " + "{}".format(f_num), (1500, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
 
-            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_AREA) #1920, 1080 -> 1280,720 -> 960, 540
+            #frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_AREA) #1920, 1080 -> 1280,720 -> 960, 540
             #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
             cv2.imshow("frame", frame)
+            writer.write(frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
+    cap.release()
+    writer.release()
     return
 
 
@@ -140,8 +183,8 @@ def YOLOINIT():
 	LABELS = open(labelsPath).read().strip().split("\n")
 
 	# derive the paths to the YOLO weights and model configuration
-	weightsPath = os.path.sep.join([BasePath, "yolov3-tiny.weights"])
-	configPath = os.path.sep.join([BasePath, "yolov3-tiny.cfg"])
+	weightsPath = os.path.sep.join([BasePath, "yolov3.weights"])
+	configPath = os.path.sep.join([BasePath, "yolov3.cfg"])
 
 	# load our YOLO object detector trained on COCO dataset (80 classes)
 	print("[INFO] loading YOLO from disk...")
@@ -242,7 +285,7 @@ def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
     if len(Vehicle_x) > 0:
         for i in range(0, len(Vehicle_x), 1):
             cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
-            cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
+            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
 #end func
 
 
