@@ -8,8 +8,8 @@ def main():
 	area_19 = _24_25(frame); loc_19 = 'down'
 	area_22 = _28_29(frame); loc_22 = 'down'
 	while True:
-		f_19 = open('cam19.csv', 'r')
-		f_22 = open('cam22.csv', 'r')
+		f_19 = open('csv/cam19.csv', 'r')
+		f_22 = open('csv/cam22.csv', 'r')
 		rdr_19 = csv.reader(f_19)
 		rdr_22 = csv.reader(f_22)
 		for line in rdr_19:

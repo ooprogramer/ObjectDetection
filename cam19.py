@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 import csv
 
 
-Input_Video = "../video/19.mp4"
-f = open('cam19.csv', 'w')
+Input_Video = "../video/19.mp4"		#video file open
+csv_file = open('csv/cam19.csv', 'w')	#csv file init open
 
-#background image
+#background image setting
 first_frame = cv2.imread("image/19_park.png")
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
@@ -42,39 +42,43 @@ def main():
     RED_cnt_4 = 0; BLUE_cnt_4 = 0
     initBB_4 = None; tracker_4 = None
 
-    #hyper parameter
+    #parking area setting (left-up -> left-down -> right-up -> right-down)
     vertices1 = [[[650, 350], [770, 350], [850, 230], [770, 230]]]	# left-up / c25
     vertices2 = [[[170, 880], [350, 980], [730, 390], [620, 380]]]	# left-down / c24
     vertices3 = [[[1160, 230], [1080, 230], [1190, 370], [1300, 370]]]	# right-up / d25
     vertices4 = [[[1310, 390], [1190, 390], [1540, 900], [1730, 880]]]	# right-down / d24
-    pos=['C25','C24','D25','D24']
-    l_up=0; l_down=0; r_up=0; r_down=0;
-    l_up, l_down, r_up, r_down = preprocess()
+    pos=['C25','C24','D25','D24']		#parking area name
+    l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable
+    (grabbed, frame) = cap.read()
+    l_up, l_down, r_up, r_down = preprocess(frame)	#already parking car counting
 
-    YOLOTINYINIT()
+    YOLOTINYINIT()	#tiny yolo initialization
 
     while(cap.isOpened()):
-        f = open('cam19.csv', 'w')
-        wr = csv.writer(f, delimiter=' ')
+        csv_file = open('csv/cam19.csv', 'w')	#csv file open
+        wr = csv.writer(csv_file, delimiter=' ')
         f_num =f_num +1
 
         (grabbed, frame) = cap.read()
 
+        #counting variable
         temp_r_1=RED_cnt_1; temp_b_1=BLUE_cnt_1
         temp_r_2=RED_cnt_2; temp_b_2=BLUE_cnt_2
         temp_r_3=RED_cnt_3; temp_b_3=BLUE_cnt_3
         temp_r_4=RED_cnt_4; temp_b_4=BLUE_cnt_4
 
+        #error exception
         if (l_up<0 or l_up>3 or l_down<0 or l_down>3 or r_up<0 or r_up>3 or r_down<0 or r_down>3):
             l_up, l_down, r_up, r_down = preprocess(frame)
             YOLOTINYINIT()
 
         if f_num % 2== 0: #detection per two frame
-            #black label at upper frame
+            #black space at upper frame
             blank_image = np.zeros((64, 1920, 3), np.uint8)
             frame[0:64, 0:1920] = blank_image
 
-            park_cnt = [l_up,l_down,r_up,r_down] #parking car count
+            #set list for loop
+            park_cnt = [l_up,l_down,r_up,r_down]
             RED_cnt = [RED_cnt_1, RED_cnt_2, RED_cnt_3, RED_cnt_4]
             BLUE_cnt = [BLUE_cnt_1, BLUE_cnt_2, BLUE_cnt_3, BLUE_cnt_4]
             vertice = [vertices1, vertices2, vertices3, vertices4]
@@ -127,16 +131,15 @@ def main():
                                       pos[2]+": {} / ".format(park_cnt[2])+pos[3]+": {}".format(park_cnt[3]), (450, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
             cv2.putText(frame, "Frame : " + "{}".format(f_num), (1500, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
 
-            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_AREA) #1920, 1080 -> 1280,720 -> 960, 540
+            frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_AREA) #1920,1080 -> 1280,720 -> 960,540
             #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
 
             cv2.imshow("frame", frame)
             wr.writerow([park_cnt[0], park_cnt[1], park_cnt[2], park_cnt[3]])
-            
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    f.close()
+    csv_file.close()
     cap.release()
     
     return
@@ -207,7 +210,7 @@ def YOLO_Detect(frame):
 
 def YOLO_BOX_INFO(frame,layerOutputs,BaseConfidence,Base_threshold):
 
-	H, W = frame.shape[:2]  ## 1920 x 1080
+	H, W = frame.shape[:2]
 	boxes = []
 	confidences = []
 	classIDs = []
@@ -266,18 +269,7 @@ def Position(idxs,classIDs,boxes,Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h):
 
     return Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h
 
-
-def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
-    if len(Vehicle_x) > 0:
-        for i in range(0, len(Vehicle_x), 1):
-            cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
-            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
-#end func
-
-
 def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tracker,Substracted,RED_cnt,BLUE_cnt,vertices):
-    # 1번 카메라에 대해서만 적용
-
     # Detecting Zone
     pts = detecting_zone(vertices)
 
@@ -297,7 +289,6 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                             pts[next_p][1] - pts[p][1]) + pts[p][0])
                 if p_x < atX:
                     crosses = crosses + 1
-                    ##텍스트로 인 아웃 여부
                     # cv2.putText(frame, str(crosses), (atX, p_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,COLOR_GREEN, 3)
 
         if crosses % 2 == 0:  # 영역 밖에 존재하는 경우
@@ -308,7 +299,6 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                 # 트래커 활성화
                 tracker = cv2.TrackerCSRT_create()
                 tracker.init(Substracted, initBB)  # 트래커를 원본이미지가 아닌  백그라운드 Substracted 된 이미지에서 트래킹함
-
 
     # 트래커 활성화시 동작
     if initBB is not None:
@@ -366,9 +356,6 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                 BLUE_line_start_xy = (vertices[0][1][0],vertices[0][1][1])
                 BLUE_line_end_xy =(vertices[0][2][0],vertices[0][2][1])
 
-                #tracker에서 매칭된 디텍티드 포인트로 변경하여 주석처리
-
-
                 if intersect(initBB_xy, Matched_xy, RED_line_start_xy, RED_line_end_xy):
                     RED_cnt = RED_cnt + 1
                     # initBB,lastBB, tracker 초기화
@@ -380,21 +367,22 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                 if intersect(initBB_xy, Matched_xy, BLUE_line_start_xy, BLUE_line_end_xy):
                     BLUE_cnt = BLUE_cnt + 1
                     cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
+                             (Matched_Xp, Matched_Yp), (255,0,0), 2)
                     # initBB,lastBB, tracker 초기화
                     initBB = None
                     tracker = cv2.TrackerCSRT_create()
     return tracker, initBB,RED_cnt, BLUE_cnt
 
-def preprocess():
+#기존에 주차되어 있는 차량 카운팅
+def preprocess(frame):
     YOLOINIT()
-    frame = first_frame
+    #left-up -> left-down -> right-up -> right-down
     a = frame[150:330, 280:750]
     b = frame[300:800, 0:600]
-    c = frame[170:330, 1180:1500]
+    c = frame[170:350, 1180:1500]
     d = frame[350:800, 1280:1920]
     area = [a,b,c,d]
-    num_a=0;num_b=0;num_c=0;num_d=0;
+    num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
     num = [num_a,num_b,num_c,num_d]
     for i in range(0,4):
         num[i] = car_number(area[i])
@@ -410,16 +398,17 @@ def preprocess():
     """
     return num[0], num[1], num[2], num[3]
 
+#전처리 yolo detection
 def car_number(frame):
     layerOutputs, start, end = YOLO_Detect(frame) #yolo detection
 
     idxs, boxes, classIDs, confidences = YOLO_BOX_INFO(frame, layerOutputs, BaseConfidence, Base_threshold) #detected object info
-    """
+    
     Vehicle_x = []; Vehicle_y = []; Vehicle_w = []; Vehicle_h = []
     Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
 
     Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
-    """
+    
     number = len(idxs)
     return number
 
@@ -434,6 +423,14 @@ def substraction(frame):
     mask3 = cv2.cvtColor(difference, cv2.COLOR_GRAY2BGR)  # 3 channel mask
     Substracted = cv2.bitwise_and(frame, mask3)
     return Substracted
+
+#object point at under center
+def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
+    if len(Vehicle_x) > 0:
+        for i in range(0, len(Vehicle_x), 1):
+            cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
+            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
+#end func
 
 def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
     # Red_Line
@@ -453,6 +450,7 @@ def detecting_zone(vertices):
                      np.int32)
     return pts
 
+#이전 프레임의 카운트와 비교하여 in-out counting
 def park_count(cnt, red_temp, blue_temp, red_cnt, blue_cnt):
     if red_temp != red_cnt:
         cnt += 1; red_temp +=1

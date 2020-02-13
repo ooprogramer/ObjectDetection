@@ -9,14 +9,14 @@ from imutils.video import FPS
 from colors import *
 
 #global
-Input_Video = "video/08.mp4"
+Input_Video = "../../video/08.mp4"
 
 #background substraction 을 위한 이미지.
 first_frame = cv2.imread("image/08.png")
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 
-BasePath = "yolo-coco"
+BasePath = "../yolo-coco"
 BaseConfidence = 0.3
 Base_threshold = 0.2
 
