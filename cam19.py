@@ -8,6 +8,7 @@ import os
 import math
 import matplotlib.pyplot as plt
 import csv
+import mask_rcnn_module as rcnn
 
 
 Input_Video = "../video/19.mp4"		#video file open
@@ -22,6 +23,7 @@ first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 BasePath = "../yolo-coco"
 BaseConfidence = 0.3  #0.3
 Base_threshold = 0.2  #0.3
+
 
 def main():
     fps = FPS().start()
@@ -374,6 +376,7 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
     return tracker, initBB,RED_cnt, BLUE_cnt
 
 #기존에 주차되어 있는 차량 카운팅
+"""
 def preprocess(frame):
     YOLOINIT()
     #left-up -> left-down -> right-up -> right-down
@@ -386,16 +389,24 @@ def preprocess(frame):
     num = [num_a,num_b,num_c,num_d]
     for i in range(0,4):
         num[i] = car_number(area[i])
-    """
-    cv2.imshow('a',a)
-    cv2.waitKey(0)
-    cv2.imshow('b',b)
-    cv2.waitKey(0)
-    cv2.imshow('c',c)
-    cv2.waitKey(0)
-    cv2.imshow('d',d)
-    cv2.waitKey(0)
-    """
+        cv2.imshow('piece', area[i])
+        cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    return num[0], num[1], num[2], num[3]
+"""
+def preprocess(frame):
+    #left-up -> left-down -> right-up -> right-down
+    a = frame[150:330, 330:750]
+    b = frame[300:800, 0:600]
+    c = frame[170:350, 1180:1500]
+    d = frame[340:800, 1280:1920]
+    area = [a,b,c,d]
+    num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
+    num = [num_a,num_b,num_c,num_d]
+    for i in range(0,4):
+        rcnn.init()
+        _,_,num[i] = rcnn.detect(area[i])
+
     return num[0], num[1], num[2], num[3]
 
 #전처리 yolo detection
