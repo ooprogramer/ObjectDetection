@@ -132,5 +132,11 @@ def Position(idxs,classIDs,boxes,Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h):
 
     return Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h
 
-
+#object point at under center
+def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
+    if len(Vehicle_x) > 0:
+        for i in range(0, len(Vehicle_x), 1):
+            cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
+            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
+#end func
 

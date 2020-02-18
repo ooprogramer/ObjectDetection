@@ -8,8 +8,9 @@ import os
 import math
 import matplotlib.pyplot as plt
 import csv
-import mask_rcnn_module as rcnn
-import yolo_module as yolo
+import module_mask_rcnn as rcnn
+import module_yolo as yolo
+
 
 Input_Video = "../video/22.mp4"		#video file open
 csv_file = open('csv/cam22.csv', 'w')	#csv file init open
@@ -22,8 +23,10 @@ first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 def main():
     fps = FPS().start()
     cap = cv2.VideoCapture(Input_Video)
+    (grabbed, frame) = cap.read()
 
     f_num = 0
+    process = 0	#yolo = 0, rcnn = 1
 
     #parking area variable
     RED_cnt_1 = 0; BLUE_cnt_1 = 0
@@ -43,10 +46,11 @@ def main():
     vertices2 = [[[250, 780], [480, 800], [720, 340], [620, 340]]]	#left-down / C28
     vertices3 = [[[1140, 230], [1080, 230], [1150, 330], [1240, 330]]]	#right-up / D29
     vertices4 = [[[1270, 360], [1170, 360], [1450, 800], [1660, 800]]]	#right-down / D28
+    area = []
+    area = reset(frame, area)
     pos = ['C29','C28','D29','D28']		#parking area name
-    l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable
-    (grabbed, frame) = cap.read()
-    l_up, l_down, r_up, r_down = preprocess(frame)	#already parking car counting
+    l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable\
+    l_up, l_down, r_up, r_down = preprocess(frame, process, area)	#already parking car counting
 
     yolo.YOLOTINYINIT()	#tiny yolo initialization
 
@@ -65,7 +69,8 @@ def main():
 
         #error exception
         if (l_up<0 or l_up>3 or l_down<0 or l_down>3 or r_up<0 or r_up>3 or r_down<0 or r_down>3):
-            l_up, l_down, r_up, r_down = preprocess(frame)
+            area = reset(frame,area)
+            l_up,l_down,r_up,r_down = error_detection(process,area,l_up,l_down,r_up,r_down)
             yolo.YOLOTINYINIT()
 
         if f_num % 2== 0: #detection per two frame
@@ -90,7 +95,7 @@ def main():
             Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = yolo.Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
 
             #draw bounding box of detected car
-            Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+            yolo.Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
             
             #left up
             tracker_1, initBB_1, RED_cnt_1, BLUE_cnt_1 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_1, frame, tracker_1, Substracted,\
@@ -140,33 +145,41 @@ def main():
     
     return
 
+def reset(frame, area):
+    #parking area setting (left-up -> left-down -> right-up -> right-down)
+    a = frame[150:330, 400:750]
+    b = frame[300:800, 0:600]
+    c = frame[170:330, 1100:1400]
+    d = frame[250:800, 1280:1920]
+    area = [a,b,c,d]
+    return area
 
 def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tracker,Substracted,RED_cnt,BLUE_cnt,vertices):
     # Detecting Zone
     pts = detecting_zone(vertices)
 
     # 차량 검출시
-    for d_num in range(0, len(Vehicle_x)):
-        # P 좌표는 프레임에서 디텍팅 포인트 영역
-        p_x = Vehicle_x[d_num] + int(Vehicle_w[d_num] / 2)
-        p_y = Vehicle_y[d_num] + int(Vehicle_h[d_num])
+    if initBB is None:
+        for d_num in range(0, len(Vehicle_x)):
+            # P 좌표는 프레임에서 디텍팅 포인트 영역
+            p_x = Vehicle_x[d_num] + int(Vehicle_w[d_num] / 2)
+            p_y = Vehicle_y[d_num] + int(Vehicle_h[d_num])
 
-        crosses = 0  # 교점의 개수(짝수개이면 영역 밖에 존재, 홀수개이면 영역 안에 존재)
-        for p in range(0, 4):  # 항상 사각형 이므로 4
-            next_p = (p + 1) % 4
-            if (pts[p][1] > p_y) != (pts[next_p][1] > p_y):  ##디텍티드 포인트의 Y좌표가 사각형의 두점사이에 존재하면
+            crosses = 0  # 교점의 개수(짝수개이면 영역 밖에 존재, 홀수개이면 영역 안에 존재)
+            for p in range(0, 4):  # 항상 사각형 이므로 4
+                next_p = (p + 1) % 4
+                if (pts[p][1] > p_y) != (pts[next_p][1] > p_y):  ##디텍티드 포인트의 Y좌표가 사각형의 두점사이에 존재하면
 
-                # atx가 오른쪽 반직선과의 교점이 맞으면 교점의 개수를 증가시킨다,
-                atX = int((pts[next_p][0] - pts[p][0]) * (p_y - pts[p][1]) / (
-                            pts[next_p][1] - pts[p][1]) + pts[p][0])
-                if p_x < atX:
-                    crosses = crosses + 1
-                    # cv2.putText(frame, str(crosses), (atX, p_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,COLOR_GREEN, 3)
+                    # atx가 오른쪽 반직선과의 교점이 맞으면 교점의 개수를 증가시킨다,
+                    atX = int((pts[next_p][0] - pts[p][0]) * (p_y - pts[p][1]) / (
+                                pts[next_p][1] - pts[p][1]) + pts[p][0])
+                    if p_x < atX:
+                        crosses = crosses + 1
+                        # cv2.putText(frame, str(crosses), (atX, p_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,COLOR_GREEN, 3)
 
-        if crosses % 2 == 0:  # 영역 밖에 존재하는 경우
-            pass
-        elif crosses % 2 == 1:  # 영역 안에 존재하는 경우
-            if initBB is None:
+            if crosses % 2 == 0:  # 영역 밖에 존재하는 경우
+                pass
+            elif crosses % 2 == 1:  # 영역 안에 존재하는 경우
                 initBB = (Vehicle_x[d_num], Vehicle_y[d_num], Vehicle_w[d_num], Vehicle_h[d_num])
                 # 트래커 활성화
                 tracker = cv2.TrackerCSRT_create()
@@ -182,12 +195,13 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
         if success:
             (x, y, w, h) = [int(v) for v in box]
 
+            cv2.circle(frame, (x+ int(w/2), y+h), 5, (0, 255, 255), -1)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
             cv2.rectangle(Substracted, (x, y), (x + w, y + h), (0, 255, 255), 2)
 
             Tracking_Xp = x + int(w/2)
             Tracking_Yp = y + h
-
+            """
             # Tracking Point 와 Detected Point의 거리가 150픽셀 이하인 경우 매칭및 트래커 박스 재조정
             Matched = False
             Matched_Xp = 0
@@ -214,82 +228,92 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     tracker = cv2.TrackerCSRT_create()
                     tracker.init(Substracted, tempBB)  # 트래커를 원본이미지가 아닌  백그라운드 Substracted 된 이미지에서 트래킹함
                     break
-
+            """
             #매칭이 트루이고, 매칭된 디텍티드 포인트가 영역밖에 존재하는 경우 - 삭제
-            if (Matched == True):
+            #if (Matched == True):
 
-                initBB_xy = (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3])
+            initBB_xy = (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3])
+            cv2.circle(frame, initBB_xy, 5, (0, 255, 255), -1)
 
-                Matched_xy =(Matched_Xp,Matched_Yp)
+            Tracking_xy = (Tracking_Xp, Tracking_Yp)
 
-                RED_line_start_xy = (vertices[0][0][0],vertices[0][0][1])
-                RED_line_end_xy = (vertices[0][3][0],vertices[0][3][1])
+            RED_line_start_xy = (vertices[0][0][0],vertices[0][0][1])
+            RED_line_end_xy = (vertices[0][3][0],vertices[0][3][1])
 
-                BLUE_line_start_xy = (vertices[0][1][0],vertices[0][1][1])
-                BLUE_line_end_xy =(vertices[0][2][0],vertices[0][2][1])
+            BLUE_line_start_xy = (vertices[0][1][0],vertices[0][1][1])
+            BLUE_line_end_xy =(vertices[0][2][0],vertices[0][2][1])
 
-                if intersect(initBB_xy, Matched_xy, RED_line_start_xy, RED_line_end_xy):
-                    RED_cnt = RED_cnt + 1
-                    # initBB,lastBB, tracker 초기화
-                    cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
-                    initBB = None
-                    tracker = cv2.TrackerCSRT_create()
+            if intersect(initBB_xy, Tracking_xy, RED_line_start_xy, RED_line_end_xy):
+                RED_cnt = RED_cnt + 1
+                # initBB,lastBB, tracker 초기화
+                cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
+                         (Tracking_Xp, Tracking_Yp), (0,0,255), 2)
+                initBB = None
+                tracker = cv2.TrackerCSRT_create()
 
-                if intersect(initBB_xy, Matched_xy, BLUE_line_start_xy, BLUE_line_end_xy):
-                    BLUE_cnt = BLUE_cnt + 1
-                    cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), (255,0,0), 2)
-                    # initBB,lastBB, tracker 초기화
-                    initBB = None
-                    tracker = cv2.TrackerCSRT_create()
-    return tracker, initBB,RED_cnt, BLUE_cnt
+            if intersect(initBB_xy, Tracking_xy, BLUE_line_start_xy, BLUE_line_end_xy):
+                BLUE_cnt = BLUE_cnt + 1
+                cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
+                         (Tracking_Xp, Tracking_Yp), (255,0,0), 2)
+                # initBB,lastBB, tracker 초기화
+                initBB = None
+                tracker = cv2.TrackerCSRT_create()
+    return tracker, initBB, RED_cnt, BLUE_cnt
+
+def error_detection(process, area, l_up,l_down,r_up,r_down):
+    if (l_up<0 or l_up>3):
+        if process == 0: l_up = yolo_preprocess(area[0])
+        else: l_up = rcnn_preprocess(area[0])
+    if (l_down<0 or l_down>3):
+        if process == 0: l_down = yolo_preprocess(area[1])
+        else: l_down = rcnn_preprocess(area[1])
+    if (r_up<0 or r_up>3):
+        if process == 0: r_up = yolo_preprocess(area[2])
+        else: r_up = rcnn_preprocess(area[2])
+    if (r_down<0 or r_down>3):
+        if process == 0: r_down = yolo_preprocess(area[3])
+        else: r_down = rcnn_preprocess(area[3])
+
+    return l_up,l_down,r_up,r_down
 
 #기존에 주차되어 있는 차량 카운팅
-"""
-def preprocess(frame):
-    YOLOINIT()
-    #left-up -> left-down -> right-up -> right-down
-    a = frame[150:330, 400:750]
-    b = frame[300:800, 0:600]
-    c = frame[170:330, 1080:1500]
-    d = frame[250:800, 1280:1920]
-    area = [a,b,c,d]
+def preprocess(frame, process, area):
     num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
     num = [num_a,num_b,num_c,num_d]
-    for i in range(0,4):
-        num[i] = car_number(area[i])
-        cv2.imshow('piece', area[i])
-        cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    return num[0], num[1], num[2], num[3]
-"""
-def preprocess(frame):
-    #left-up -> left-down -> right-up -> right-down
-    a = frame[180:330, 360:750]
-    b = frame[280:800, 0:600]
-    c = frame[170:320, 1100:1500]
-    d = frame[250:800, 1280:1900]
-    area = [a,b,c,d]
-    num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
-    num = [num_a,num_b,num_c,num_d]
-    for i in range(0,4):
-        rcnn.init()
-        _,_,num[i] = rcnn.detect(area[i])
 
+    if process == 0:
+        for i in range(0,4):
+            num[i] = yolo_preprocess(area[i])
+    else:
+        for i in range(0,4):
+            num[i] = rcnn_preprocess(area[i])
     return num[0], num[1], num[2], num[3]
+
+def yolo_preprocess(area):
+    yolo.YOLOINIT()
+    number = car_number(area)
+    return number
+
+def rcnn_preprocess(area):
+    rcnn.init()
+    _,_,number = rcnn.detect(area)
+    return number
 
 #전처리 yolo detection
 def car_number(frame):
-    layerOutputs, start, end = YOLO_Detect(frame) #yolo detection
+    layerOutputs, start, end = yolo.YOLO_Detect(frame) #yolo detection
 
-    idxs, boxes, classIDs, confidences = YOLO_BOX_INFO(frame, layerOutputs) #detected object info
+    idxs, boxes, classIDs, confidences = yolo.YOLO_BOX_INFO(frame, layerOutputs) #detected object info
     
     Vehicle_x = []; Vehicle_y = []; Vehicle_w = []; Vehicle_h = []
-    Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+    Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = yolo.Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
 
-    Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
-    
+    yolo.Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+    """
+    cv2.imshow('piece', frame)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    """
     number = len(idxs)
     return number
 
@@ -304,14 +328,6 @@ def substraction(frame):
     mask3 = cv2.cvtColor(difference, cv2.COLOR_GRAY2BGR)  # 3 channel mask
     Substracted = cv2.bitwise_and(frame, mask3)
     return Substracted
-
-#object point at under center
-def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
-    if len(Vehicle_x) > 0:
-        for i in range(0, len(Vehicle_x), 1):
-            cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
-            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
-#end func
 
 def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
     # Red_Line

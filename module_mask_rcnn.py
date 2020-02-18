@@ -5,7 +5,7 @@ import cv2
 import os
 
 RcnnPath = "mask-rcnn-coco"
-RcnnConfidence = 0.75
+RcnnConfidence = 0.6
 Rcnn_threshold = 0.3
 
 visualize = 0
@@ -38,14 +38,13 @@ def detect(image):
 		confidence = boxes[0, 0, i, 2]
 		if (classID==2 or classID==7) and (confidence>RcnnConfidence):
 			car_num += 1
+			#output(image,boxes,masks)
 
-	#print("[INFO] Mask R-CNN took {:.6f} seconds".format(end - start))
-	#print("[INFO] number of object: {}".format(len(boxes[0][0])))
 	print("[INFO] number of car: {}".format(car_num))
 	#print("[INFO] boxes shape: {}".format(boxes.shape))
-	#rint("[INFO] masks shape: {}".format(masks.shape))
-
-	output(image,boxes,masks)
+	#print("[INFO] masks shape: {}".format(masks.shape))
+	#print("[INFO] Mask R-CNN took {:.6f} seconds".format(end - start))
+	#print("[INFO] number of object: {}".format(len(boxes[0][0])))
 
 	return boxes, masks, car_num
 
@@ -86,6 +85,8 @@ def output(image, boxes, masks):
 	#image = cv2.resize(image, (1280,720), interpolation=cv2.INTER_AREA) #1920,1080 -> 1280,720 -> 960,540
 	cv2.imshow("Output", image)
 	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+	
 
 def extract(roi, mask):
 	if visualize > 0:

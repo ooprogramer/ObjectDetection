@@ -8,7 +8,8 @@ import os
 import math
 import matplotlib.pyplot as plt
 import csv
-import mask_rcnn_module as rcnn
+import module_mask_rcnn as rcnn
+import module_yolo as yolo
 
 
 Input_Video = "../video/19.mp4"		#video file open
@@ -19,17 +20,13 @@ first_frame = cv2.imread("image/19_park.png")
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 
-#yolo setting
-BasePath = "../yolo-coco"
-BaseConfidence = 0.3  #0.3
-Base_threshold = 0.2  #0.3
-
-
 def main():
     fps = FPS().start()
     cap = cv2.VideoCapture(Input_Video)
+    (grabbed, frame) = cap.read()
 
     f_num = 0
+    process = 1	#yolo = 0, rcnn = 1
 
     #parking area variable
     RED_cnt_1 = 0; BLUE_cnt_1 = 0
@@ -44,17 +41,18 @@ def main():
     RED_cnt_4 = 0; BLUE_cnt_4 = 0
     initBB_4 = None; tracker_4 = None
 
-    #parking area setting (left-up -> left-down -> right-up -> right-down)
+    #parking line setting (left-up -> left-down -> right-up -> right-down)
     vertices1 = [[[650, 350], [770, 350], [850, 230], [770, 230]]]	# left-up / c25
     vertices2 = [[[170, 880], [350, 980], [730, 390], [620, 380]]]	# left-down / c24
     vertices3 = [[[1160, 230], [1080, 230], [1190, 370], [1300, 370]]]	# right-up / d25
     vertices4 = [[[1310, 390], [1190, 390], [1540, 900], [1730, 880]]]	# right-down / d24
+    area = []
+    area = reset(frame, area)
     pos=['C25','C24','D25','D24']		#parking area name
     l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable
-    (grabbed, frame) = cap.read()
-    l_up, l_down, r_up, r_down = preprocess(frame)	#already parking car counting
+    l_up, l_down, r_up, r_down = preprocess(frame, process, area)	#already parking car counting
 
-    YOLOTINYINIT()	#tiny yolo initialization
+    yolo.YOLOTINYINIT()	#tiny yolo initialization
 
     while(cap.isOpened()):
         csv_file = open('csv/cam19.csv', 'w')	#csv file open
@@ -71,8 +69,9 @@ def main():
 
         #error exception
         if (l_up<0 or l_up>3 or l_down<0 or l_down>3 or r_up<0 or r_up>3 or r_down<0 or r_down>3):
-            l_up, l_down, r_up, r_down = preprocess(frame)
-            YOLOTINYINIT()
+            area = reset(frame,area)
+            l_up,l_down,r_up,r_down = error_detection(process,area,l_up,l_down,r_up,r_down)
+            yolo.YOLOTINYINIT()
 
         if f_num % 2== 0: #detection per two frame
             #black space at upper frame
@@ -87,16 +86,16 @@ def main():
 
             Substracted = substraction(frame) #background image
 
-            layerOutputs, start, end = YOLO_Detect(frame) #yolo detection
+            layerOutputs, start, end = yolo.YOLO_Detect(frame) #yolo detection
 
-            idxs, boxes, classIDs, confidences = YOLO_BOX_INFO(frame, layerOutputs, BaseConfidence, Base_threshold) #detected object info
+            idxs, boxes, classIDs, confidences = yolo.YOLO_BOX_INFO(frame, layerOutputs) #detected object info
 
             #point of detected car
             Vehicle_x = []; Vehicle_y = []; Vehicle_w = []; Vehicle_h = []
-            Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+            Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = yolo.Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
 
             #draw bounding box of detected car
-            Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+            yolo.Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
             
             #left up
             tracker_1, initBB_1, RED_cnt_1, BLUE_cnt_1 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_1, frame, tracker_1, Substracted,\
@@ -146,130 +145,14 @@ def main():
     
     return
 
-
-def YOLOINIT():
-	# load the COCO class labels our YOLO model was trained on
-	labelsPath = os.path.sep.join([BasePath, "coco.names"])
-
-	global LABELS
-	LABELS = open(labelsPath).read().strip().split("\n")
-
-	# derive the paths to the YOLO weights and model configuration
-	weightsPath = os.path.sep.join([BasePath, "yolov3.weights"])
-	configPath = os.path.sep.join([BasePath, "yolov3.cfg"])
-
-	# load our YOLO object detector trained on COCO dataset (80 classes)
-	print("[INFO] loading YOLO from disk...")
-	global net
-	net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
-
-	# determine only the *output* layer names that we need from YOLO
-	global ln
-	ln = net.getLayerNames()
-	ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
-
-	# initialize the video stream, pointer to output video file, and
-	# frame dimensions
-
-	(W, H) = (None, None)
-#end YOLOINIT()
-
-def YOLOTINYINIT():
-	labelsPath = os.path.sep.join([BasePath, "coco.names"])
-
-	global LABELS
-	LABELS = open(labelsPath).read().strip().split("\n")
-
-	weightsPath = os.path.sep.join([BasePath, "yolov3-tiny.weights"])
-	configPath = os.path.sep.join([BasePath, "yolov3-tiny.cfg"])
-
-	print("[INFO] loading YOLO_TINY from disk...")
-	global net
-	net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
-
-	global ln
-	ln = net.getLayerNames()
-	ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
-
-	(W, H) = (None, None)
-#end YOLOINIT()
-
-
-def YOLO_Detect(frame):
-	# construct a blob from the input frame and then perform a forward
-	# pass of the YOLO object detector, giving us our bounding boxes
-	# and associated probabilities
-	blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416), swapRB=True, crop=False)
-	net.setInput(blob)
-	start = time.time()
-	layerOutputs = net.forward(ln)
-	end = time.time()
-
-	#print("[INFO] {:.6f} seconds".format(end - start))
-	return layerOutputs,start,end
-#end YOLO_Detect()
-
-
-def YOLO_BOX_INFO(frame,layerOutputs,BaseConfidence,Base_threshold):
-
-	H, W = frame.shape[:2]
-	boxes = []
-	confidences = []
-	classIDs = []
-
-	# loop over each of the layer outputs
-	# loop over each of the layer outputs
-	for output in layerOutputs:
-		# loop over each of the detections
-		for detection in output:
-			# extract the class ID and confidence (i.e., probability)
-			# of the current object detection
-			scores = detection[5:]
-			classID = np.argmax(scores)
-			confidence = scores[classID]
-
-			# filter out weak predictions by ensuring the detected
-			# probability is greater than the minimum probability
-			if confidence > BaseConfidence:
-				# scale the bounding box coordinates back relative to
-				# the size of the image, keeping in mind that YOLO
-				# actually returns the center (x, y)-coordinates of
-				# the bounding box followed by the boxes' width and
-				# height
-				box = detection[0:4] * np.array([W, H, W, H])
-				(centerX, centerY, width, height) = box.astype("int")
-
-				# use the center (x, y)-coordinates to derive the top
-				# and and left corner of the bounding box
-				x = int(centerX - (width / 2))
-				y = int(centerY - (height / 2))
-
-				# update our list of bounding box coordinates,
-				# confidences, and class IDs
-				boxes.append([x, y, int(width), int(height)])
-				confidences.append(float(confidence))
-				classIDs.append(classID)
-
-	# apply non-maxima suppression to suppress weak, overlapping
-	# bounding boxes
-	idxs = cv2.dnn.NMSBoxes(boxes, confidences, BaseConfidence, Base_threshold)
-	return idxs, boxes , classIDs, confidences
-
-def Position(idxs,classIDs,boxes,Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h):
-
-    if len(idxs) > 0:
-        # loop over the indexes we are keeping
-        for i in idxs.flatten():
-            # extract the bounding box coordinates
-            ##검출된 이미지가 차량(2) 또는 트럭(7) 인경우에
-            if classIDs[i] == 2 or classIDs[i] == 7:
-                (x, y) = (boxes[i][0], boxes[i][1])
-                (w, h) = (boxes[i][2], boxes[i][3])
-
-                # 검출된 번호에 맞게 차량의 위치, 크기 정보 대입
-                Vehicle_x.append(x); Vehicle_y.append(y); Vehicle_w.append(w); Vehicle_h.append(h)
-
-    return Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h
+def reset(frame, area):
+    #parking area setting (left-up -> left-down -> right-up -> right-down)
+    a = frame[150:330, 310:750]		# left-up / c25
+    b = frame[200:800, 0:650]		# left-down / c24
+    c = frame[170:350, 1180:1500]	# right-up / d25
+    d = frame[350:800, 1280:1920]	# right-down / d24
+    area = [a,b,c,d]
+    return area
 
 def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tracker,Substracted,RED_cnt,BLUE_cnt,vertices):
     # Detecting Zone
@@ -375,51 +258,60 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     tracker = cv2.TrackerCSRT_create()
     return tracker, initBB,RED_cnt, BLUE_cnt
 
-#기존에 주차되어 있는 차량 카운팅
-"""
-def preprocess(frame):
-    YOLOINIT()
-    #left-up -> left-down -> right-up -> right-down
-    a = frame[150:330, 280:750]
-    b = frame[300:800, 0:600]
-    c = frame[170:350, 1180:1500]
-    d = frame[350:800, 1280:1920]
-    area = [a,b,c,d]
-    num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
-    num = [num_a,num_b,num_c,num_d]
-    for i in range(0,4):
-        num[i] = car_number(area[i])
-        cv2.imshow('piece', area[i])
-        cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    return num[0], num[1], num[2], num[3]
-"""
-def preprocess(frame):
-    #left-up -> left-down -> right-up -> right-down
-    a = frame[150:330, 330:750]
-    b = frame[300:800, 0:600]
-    c = frame[170:350, 1180:1500]
-    d = frame[340:800, 1280:1920]
-    area = [a,b,c,d]
-    num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
-    num = [num_a,num_b,num_c,num_d]
-    for i in range(0,4):
-        rcnn.init()
-        _,_,num[i] = rcnn.detect(area[i])
+def error_detection(process, area, l_up,l_down,r_up,r_down):
+    if (l_up<0 or l_up>3):
+        if process == 0: l_up = yolo_preprocess(area[0])
+        else: l_up = rcnn_preprocess(area[0])
+    if (l_down<0 or l_down>3):
+        if process == 0: l_down = yolo_preprocess(area[1])
+        else: l_down = rcnn_preprocess(area[1])
+    if (r_up<0 or r_up>3):
+        if process == 0: r_up = yolo_preprocess(area[2])
+        else: r_up = rcnn_preprocess(area[2])
+    if (r_down<0 or r_down>3):
+        if process == 0: r_down = yolo_preprocess(area[3])
+        else: r_down = rcnn_preprocess(area[3])
 
+    return l_up,l_down,r_up,r_down
+
+#기존에 주차되어 있는 차량 카운팅
+def preprocess(frame, process, area):
+    num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
+    num = [num_a,num_b,num_c,num_d]
+
+    if process == 0:
+        for i in range(0,4):
+            num[i] = yolo_preprocess(area[i])
+    else:
+        for i in range(0,4):
+            num[i] = rcnn_preprocess(area[i])
     return num[0], num[1], num[2], num[3]
+
+def yolo_preprocess(area):
+    yolo.YOLOINIT()
+    number = car_number(area)
+    return number
+
+def rcnn_preprocess(area):
+    rcnn.init()
+    _,_,number = rcnn.detect(area)
+    return number
 
 #전처리 yolo detection
 def car_number(frame):
-    layerOutputs, start, end = YOLO_Detect(frame) #yolo detection
+    layerOutputs, start, end = yolo.YOLO_Detect(frame) #yolo detection
 
-    idxs, boxes, classIDs, confidences = YOLO_BOX_INFO(frame, layerOutputs, BaseConfidence, Base_threshold) #detected object info
+    idxs, boxes, classIDs, confidences = yolo.YOLO_BOX_INFO(frame, layerOutputs) #detected object info
     
     Vehicle_x = []; Vehicle_y = []; Vehicle_w = []; Vehicle_h = []
-    Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+    Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h = yolo.Position(idxs, classIDs, boxes, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
 
-    Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
-    
+    yolo.Draw_Points(frame, Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h)
+    """
+    cv2.imshow('piece', frame)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    """
     number = len(idxs)
     return number
 
@@ -435,13 +327,6 @@ def substraction(frame):
     Substracted = cv2.bitwise_and(frame, mask3)
     return Substracted
 
-#object point at under center
-def Draw_Points(frame,Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h):
-    if len(Vehicle_x) > 0:
-        for i in range(0, len(Vehicle_x), 1):
-            cv2.circle(frame, (Vehicle_x[i] + int(Vehicle_w[i] / 2), Vehicle_y[i] + Vehicle_h[i]), 5, (0, 255, 0), -1)
-            #cv2.rectangle(frame, (Vehicle_x[i], Vehicle_y[i]), (Vehicle_x[i]+Vehicle_w[i], Vehicle_y[i]+Vehicle_h[i]), (255, 255, 0), 2)
-#end func
 
 def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
     # Red_Line

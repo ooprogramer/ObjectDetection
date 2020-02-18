@@ -12,11 +12,11 @@ import module_mask_rcnn as rcnn
 import module_yolo as yolo
 
 
-Input_Video = "../video/22.mp4"		#video file open
-csv_file = open('csv/cam22.csv', 'w')	#csv file init open
+Input_Video = "../video/19.mp4"		#video file open
+csv_file = open('csv/cam19.csv', 'w')	#csv file init open
 
 #background image setting
-first_frame = cv2.imread("image/22.png")
+first_frame = cv2.imread("image/19_park.png")
 first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
 first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
 
@@ -41,21 +41,21 @@ def main():
     RED_cnt_4 = 0; BLUE_cnt_4 = 0
     initBB_4 = None; tracker_4 = None
 
-    #parking area setting (left-up -> left-down -> right-up -> right-down)
-    vertices1 = [[[650, 300], [750, 300], [810, 210], [745, 210]]]	#left-up / C29
-    vertices2 = [[[250, 780], [480, 800], [720, 340], [620, 340]]]	#left-down / C28
-    vertices3 = [[[1140, 230], [1080, 230], [1150, 330], [1240, 330]]]	#right-up / D29
-    vertices4 = [[[1270, 360], [1170, 360], [1450, 800], [1660, 800]]]	#right-down / D28
+    #parking line setting (left-up -> left-down -> right-up -> right-down)
+    vertices1 = [[[650, 350], [770, 350], [850, 230], [770, 230]]]	# left-up / c25
+    vertices2 = [[[170, 880], [350, 980], [730, 390], [620, 380]]]	# left-down / c24
+    vertices3 = [[[1160, 230], [1080, 230], [1190, 370], [1300, 370]]]	# right-up / d25
+    vertices4 = [[[1310, 390], [1190, 390], [1540, 900], [1730, 880]]]	# right-down / d24
     area = []
     area = reset(frame, area)
-    pos = ['C29','C28','D29','D28']		#parking area name
-    l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable\
+    pos=['C25','C24','D25','D24']		#parking area name
+    l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable
     l_up, l_down, r_up, r_down = preprocess(frame, process, area)	#already parking car counting
 
     yolo.YOLOTINYINIT()	#tiny yolo initialization
 
     while(cap.isOpened()):
-        csv_file = open('csv/cam22.csv', 'w')	#csv file open
+        csv_file = open('csv/cam19.csv', 'w')	#csv file open
         wr = csv.writer(csv_file, delimiter=' ')
         f_num =f_num +1
 
@@ -147,10 +147,10 @@ def main():
 
 def reset(frame, area):
     #parking area setting (left-up -> left-down -> right-up -> right-down)
-    a = frame[150:330, 400:750]
-    b = frame[300:800, 0:600]
-    c = frame[170:330, 1100:1400]
-    d = frame[250:800, 1280:1920]
+    a = frame[150:330, 310:750]		# left-up / c25
+    b = frame[300:800, 30:650]		# left-down / c24
+    c = frame[170:350, 1180:1500]	# right-up / d25
+    d = frame[350:800, 1280:1920]	# right-down / d24
     area = [a,b,c,d]
     return area
 
@@ -159,27 +159,27 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
     pts = detecting_zone(vertices)
 
     # 차량 검출시
-    for d_num in range(0, len(Vehicle_x)):
-        # P 좌표는 프레임에서 디텍팅 포인트 영역
-        p_x = Vehicle_x[d_num] + int(Vehicle_w[d_num] / 2)
-        p_y = Vehicle_y[d_num] + int(Vehicle_h[d_num])
+    if initBB is None:
+        for d_num in range(0, len(Vehicle_x)):
+            # P 좌표는 프레임에서 디텍팅 포인트 영역
+            p_x = Vehicle_x[d_num] + int(Vehicle_w[d_num] / 2)
+            p_y = Vehicle_y[d_num] + int(Vehicle_h[d_num])
 
-        crosses = 0  # 교점의 개수(짝수개이면 영역 밖에 존재, 홀수개이면 영역 안에 존재)
-        for p in range(0, 4):  # 항상 사각형 이므로 4
-            next_p = (p + 1) % 4
-            if (pts[p][1] > p_y) != (pts[next_p][1] > p_y):  ##디텍티드 포인트의 Y좌표가 사각형의 두점사이에 존재하면
+            crosses = 0  # 교점의 개수(짝수개이면 영역 밖에 존재, 홀수개이면 영역 안에 존재)
+            for p in range(0, 4):  # 항상 사각형 이므로 4
+                next_p = (p + 1) % 4
+                if (pts[p][1] > p_y) != (pts[next_p][1] > p_y):  ##디텍티드 포인트의 Y좌표가 사각형의 두점사이에 존재하면
 
-                # atx가 오른쪽 반직선과의 교점이 맞으면 교점의 개수를 증가시킨다,
-                atX = int((pts[next_p][0] - pts[p][0]) * (p_y - pts[p][1]) / (
-                            pts[next_p][1] - pts[p][1]) + pts[p][0])
-                if p_x < atX:
-                    crosses = crosses + 1
-                    # cv2.putText(frame, str(crosses), (atX, p_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,COLOR_GREEN, 3)
+                    # atx가 오른쪽 반직선과의 교점이 맞으면 교점의 개수를 증가시킨다,
+                    atX = int((pts[next_p][0] - pts[p][0]) * (p_y - pts[p][1]) / (
+                                pts[next_p][1] - pts[p][1]) + pts[p][0])
+                    if p_x < atX:
+                        crosses = crosses + 1
+                        # cv2.putText(frame, str(crosses), (atX, p_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,COLOR_GREEN, 3)
 
-        if crosses % 2 == 0:  # 영역 밖에 존재하는 경우
-            pass
-        elif crosses % 2 == 1:  # 영역 안에 존재하는 경우
-            if initBB is None:
+            if crosses % 2 == 0:  # 영역 밖에 존재하는 경우
+                pass
+            elif crosses % 2 == 1:  # 영역 안에 존재하는 경우
                 initBB = (Vehicle_x[d_num], Vehicle_y[d_num], Vehicle_w[d_num], Vehicle_h[d_num])
                 # 트래커 활성화
                 tracker = cv2.TrackerCSRT_create()
@@ -195,12 +195,13 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
         if success:
             (x, y, w, h) = [int(v) for v in box]
 
+            cv2.circle(frame, (x+ int(w/2), y+h), 5, (0, 255, 255), -1)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
             cv2.rectangle(Substracted, (x, y), (x + w, y + h), (0, 255, 255), 2)
 
             Tracking_Xp = x + int(w/2)
             Tracking_Yp = y + h
-
+            """
             # Tracking Point 와 Detected Point의 거리가 150픽셀 이하인 경우 매칭및 트래커 박스 재조정
             Matched = False
             Matched_Xp = 0
@@ -227,36 +228,37 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     tracker = cv2.TrackerCSRT_create()
                     tracker.init(Substracted, tempBB)  # 트래커를 원본이미지가 아닌  백그라운드 Substracted 된 이미지에서 트래킹함
                     break
-
+            """
             #매칭이 트루이고, 매칭된 디텍티드 포인트가 영역밖에 존재하는 경우 - 삭제
-            if (Matched == True):
+            #if (Matched == True):
 
-                initBB_xy = (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3])
+            initBB_xy = (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3])
+            cv2.circle(frame, initBB_xy, 5, (0, 255, 255), -1)
 
-                Matched_xy =(Matched_Xp,Matched_Yp)
+            Tracking_xy = (Tracking_Xp, Tracking_Yp)
 
-                RED_line_start_xy = (vertices[0][0][0],vertices[0][0][1])
-                RED_line_end_xy = (vertices[0][3][0],vertices[0][3][1])
+            RED_line_start_xy = (vertices[0][0][0],vertices[0][0][1])
+            RED_line_end_xy = (vertices[0][3][0],vertices[0][3][1])
 
-                BLUE_line_start_xy = (vertices[0][1][0],vertices[0][1][1])
-                BLUE_line_end_xy =(vertices[0][2][0],vertices[0][2][1])
+            BLUE_line_start_xy = (vertices[0][1][0],vertices[0][1][1])
+            BLUE_line_end_xy =(vertices[0][2][0],vertices[0][2][1])
 
-                if intersect(initBB_xy, Matched_xy, RED_line_start_xy, RED_line_end_xy):
-                    RED_cnt = RED_cnt + 1
-                    # initBB,lastBB, tracker 초기화
-                    cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), (0,0,255), 2)
-                    initBB = None
-                    tracker = cv2.TrackerCSRT_create()
+            if intersect(initBB_xy, Tracking_xy, RED_line_start_xy, RED_line_end_xy):
+                RED_cnt = RED_cnt + 1
+                # initBB,lastBB, tracker 초기화
+                cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
+                         (Tracking_Xp, Tracking_Yp), (0,0,255), 2)
+                initBB = None
+                tracker = cv2.TrackerCSRT_create()
 
-                if intersect(initBB_xy, Matched_xy, BLUE_line_start_xy, BLUE_line_end_xy):
-                    BLUE_cnt = BLUE_cnt + 1
-                    cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                             (Matched_Xp, Matched_Yp), (255,0,0), 2)
-                    # initBB,lastBB, tracker 초기화
-                    initBB = None
-                    tracker = cv2.TrackerCSRT_create()
-    return tracker, initBB,RED_cnt, BLUE_cnt
+            if intersect(initBB_xy, Tracking_xy, BLUE_line_start_xy, BLUE_line_end_xy):
+                BLUE_cnt = BLUE_cnt + 1
+                cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
+                         (Tracking_Xp, Tracking_Yp), (255,0,0), 2)
+                # initBB,lastBB, tracker 초기화
+                initBB = None
+                tracker = cv2.TrackerCSRT_create()
+    return tracker, initBB, RED_cnt, BLUE_cnt
 
 def error_detection(process, area, l_up,l_down,r_up,r_down):
     if (l_up<0 or l_up>3):
@@ -326,6 +328,7 @@ def substraction(frame):
     mask3 = cv2.cvtColor(difference, cv2.COLOR_GRAY2BGR)  # 3 channel mask
     Substracted = cv2.bitwise_and(frame, mask3)
     return Substracted
+
 
 def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
     # Red_Line

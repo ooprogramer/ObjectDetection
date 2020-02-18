@@ -5,7 +5,7 @@ import os
 import time
 
 #global
-Input_Video = "../cctv/2019-12-14/60/60-20191214-130000-20191214-133000.mp4"
+Input_Video = "../cctv/2019-12-14/19/19-20191214-130000-20191214-133000.mp4"
 
 BasePath = "../yolo-coco"
 BaseConfidence = 0.3  #0.3
