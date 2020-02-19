@@ -26,7 +26,7 @@ def main():
     (grabbed, frame) = cap.read()
 
     f_num = 0
-    process = 1	#yolo = 0, rcnn = 1
+    process = 0	#yolo = 0, rcnn = 1
 
     #parking area variable
     RED_cnt_1 = 0; BLUE_cnt_1 = 0
@@ -133,7 +133,7 @@ def main():
             cv2.putText(frame, "Frame : " + "{}".format(f_num), (1500, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
 
             frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_AREA) #1920,1080 -> 1280,720 -> 960,540
-            #Substracted = cv2.resize(Substracted , (1280, 720), interpolation=cv2.INTER_CUBIC)
+            #Substracted = cv2.resize(Substracted , (960, 540), interpolation=cv2.INTER_CUBIC)
 
             cv2.imshow("frame", frame)
             wr.writerow([park_cnt[0], park_cnt[1], park_cnt[2], park_cnt[3]])
@@ -148,7 +148,7 @@ def main():
 def reset(frame, area):
     #parking area setting (left-up -> left-down -> right-up -> right-down)
     a = frame[150:330, 310:750]		# left-up / c25
-    b = frame[200:800, 0:650]		# left-down / c24
+    b = frame[300:800, 30:650]		# left-down / c24
     c = frame[170:350, 1180:1500]	# right-up / d25
     d = frame[350:800, 1280:1920]	# right-down / d24
     area = [a,b,c,d]

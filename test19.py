@@ -26,7 +26,7 @@ def main():
     (grabbed, frame) = cap.read()
 
     f_num = 0
-    process = 1	#yolo = 0, rcnn = 1
+    process = 0	#yolo = 0, rcnn = 1
 
     #parking area variable
     RED_cnt_1 = 0; BLUE_cnt_1 = 0

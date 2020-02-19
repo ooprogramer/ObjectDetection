@@ -44,13 +44,13 @@ def main():
     #parking area setting (left-up -> left-down -> right-up -> right-down)
     vertices1 = [[[650, 300], [750, 300], [810, 210], [745, 210]]]	#left-up / C29
     vertices2 = [[[250, 780], [480, 800], [720, 340], [620, 340]]]	#left-down / C28
-    vertices3 = [[[1140, 230], [1080, 230], [1150, 330], [1240, 330]]]	#right-up / D29
+    vertices3 = [[[1160, 230], [1080, 230], [1150, 330], [1260, 330]]]	#right-up / D29
     vertices4 = [[[1270, 360], [1170, 360], [1450, 800], [1660, 800]]]	#right-down / D28
     area = []
     area = reset(frame, area)
     pos = ['C29','C28','D29','D28']		#parking area name
-    l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable\
-    l_up, l_down, r_up, r_down = preprocess(frame, process, area)	#already parking car counting
+    l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable
+    #l_up, l_down, r_up, r_down = preprocess(frame, process, area)	#already parking car counting
 
     yolo.YOLOTINYINIT()	#tiny yolo initialization
 
@@ -175,13 +175,12 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                                 pts[next_p][1] - pts[p][1]) + pts[p][0])
                     if p_x < atX:
                         crosses = crosses + 1
-                        # cv2.putText(frame, str(crosses), (atX, p_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,COLOR_GREEN, 3)
+                        #cv2.putText(frame, str(crosses), (atX, p_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(0,255,0), 3)
 
             if crosses % 2 == 0:  # 영역 밖에 존재하는 경우
                 pass
-            elif crosses % 2 == 1:  # 영역 안에 존재하는 경우
+            elif crosses % 2 == 1:  # 영역 안에 존재하는 경우 트래커 활성
                 initBB = (Vehicle_x[d_num], Vehicle_y[d_num], Vehicle_w[d_num], Vehicle_h[d_num])
-                # 트래커 활성화
                 tracker = cv2.TrackerCSRT_create()
                 tracker.init(Substracted, initBB)  # 트래커를 원본이미지가 아닌  백그라운드 Substracted 된 이미지에서 트래킹함
 
@@ -191,7 +190,6 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
         (success, box) = tracker.update(Substracted)
 
         # check to see if the tracking was a success
-        # 트래킹 성공시
         if success:
             (x, y, w, h) = [int(v) for v in box]
 
@@ -199,63 +197,28 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
             cv2.rectangle(Substracted, (x, y), (x + w, y + h), (0, 255, 255), 2)
 
-            Tracking_Xp = x + int(w/2)
-            Tracking_Yp = y + h
-            """
-            # Tracking Point 와 Detected Point의 거리가 150픽셀 이하인 경우 매칭및 트래커 박스 재조정
-            Matched = False
-            Matched_Xp = 0
-            Matched_Yp = 0
-
-            for i in range(0, len(Vehicle_x), 1):
-
-                Vehicle_Xp = Vehicle_x[i] + int(Vehicle_w[i] / 2)
-                Vehicle_Yp = Vehicle_y[i] + Vehicle_h[i]
-
-                #트래커 포인트와 디텍팅 포인트와의 거리가 150이하인 경우
-                if int(math.sqrt(pow(abs(Tracking_Xp-Vehicle_Xp), 2) + pow(abs(Tracking_Yp-Vehicle_Yp), 2))) < 200:
-                    cv2.line(frame, (Tracking_Xp, Tracking_Yp),
-                             (Vehicle_Xp, Vehicle_Yp), (125,255,125), 2)
-
-                    Matched = True
-                    Matched_Xp=Vehicle_Xp
-                    Matched_Yp=Vehicle_Yp
-
-                    #트래커의 박스를 재조정하기위한 Bounding box
-                    tempBB= (Vehicle_x[i], Vehicle_y[i], Vehicle_w[i], Vehicle_h[i])
-
-                    #트래커삭제 및 갱신
-                    tracker = cv2.TrackerCSRT_create()
-                    tracker.init(Substracted, tempBB)  # 트래커를 원본이미지가 아닌  백그라운드 Substracted 된 이미지에서 트래킹함
-                    break
-            """
-            #매칭이 트루이고, 매칭된 디텍티드 포인트가 영역밖에 존재하는 경우 - 삭제
-            #if (Matched == True):
-
-            initBB_xy = (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3])
-            cv2.circle(frame, initBB_xy, 5, (0, 255, 255), -1)
-
+            Tracking_Xp = x + int(w/2); Tracking_Yp = y + h
             Tracking_xy = (Tracking_Xp, Tracking_Yp)
+
+            initBB_x = initBB[0] + int(initBB[2] / 2); initBB_y = initBB[1] + initBB[3]
+            initBB_xy = (initBB_x, initBB_y)
+            cv2.circle(frame, initBB_xy, 5, (0, 255, 255), -1)
 
             RED_line_start_xy = (vertices[0][0][0],vertices[0][0][1])
             RED_line_end_xy = (vertices[0][3][0],vertices[0][3][1])
 
             BLUE_line_start_xy = (vertices[0][1][0],vertices[0][1][1])
-            BLUE_line_end_xy =(vertices[0][2][0],vertices[0][2][1])
+            BLUE_line_end_xy = (vertices[0][2][0],vertices[0][2][1])
 
             if intersect(initBB_xy, Tracking_xy, RED_line_start_xy, RED_line_end_xy):
                 RED_cnt = RED_cnt + 1
-                # initBB,lastBB, tracker 초기화
-                cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                         (Tracking_Xp, Tracking_Yp), (0,0,255), 2)
+                cv2.line(frame, (initBB_x, initBB_y), (Tracking_Xp, Tracking_Yp), (0,0,255), 2)
                 initBB = None
                 tracker = cv2.TrackerCSRT_create()
 
             if intersect(initBB_xy, Tracking_xy, BLUE_line_start_xy, BLUE_line_end_xy):
                 BLUE_cnt = BLUE_cnt + 1
-                cv2.line(frame, (initBB[0] + int(initBB[2] / 2), initBB[1] + initBB[3]),
-                         (Tracking_Xp, Tracking_Yp), (255,0,0), 2)
-                # initBB,lastBB, tracker 초기화
+                cv2.line(frame, (initBB_x, initBB_y), (Tracking_Xp, Tracking_Yp), (255,0,0), 2)
                 initBB = None
                 tracker = cv2.TrackerCSRT_create()
     return tracker, initBB, RED_cnt, BLUE_cnt
@@ -340,6 +303,7 @@ def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
 
 def detecting_zone(vertices):
     # Detecting Zone
+    #vertices[0][0][0]-> left red / vertices[0][3][0]-> right red / vertices[0][1][0]-> left blue / vertices[0][2][0]-> right blue
     pts = np.array([[vertices[0][1][0] + int(2 / 3 * (vertices[0][0][0] - vertices[0][1][0])), vertices[0][0][1] + int(1 / 3 * (vertices[0][1][1] - vertices[0][0][1]))], \
                       [vertices[0][1][0] + int(1 / 3 * (vertices[0][0][0] - vertices[0][1][0])), vertices[0][0][1] + int(2 / 3 * (vertices[0][1][1] - vertices[0][0][1]))], \
                       [vertices[0][3][0] + int(2 / 3 * (vertices[0][2][0] - vertices[0][3][0])), vertices[0][3][1] + int(2 / 3 * (vertices[0][2][1] - vertices[0][3][1]))], \

@@ -67,7 +67,7 @@ def output(image, boxes, masks):
 	
 			roi = image[startY:endY, startX:endX]
 			
-			extract(roi,mask)
+			#extract(roi,mask)
 
 			roi = roi[mask]
 			color = np.array(COLOR).astype("uint8")
@@ -80,9 +80,7 @@ def output(image, boxes, masks):
 			text = "{}: {:.4f}".format(LABELS_RCNN[classID], confidence)
 			cv2.putText(image, text, (startX, startY - 5),
 				cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR, 2)
-	
-	
-	#image = cv2.resize(image, (1280,720), interpolation=cv2.INTER_AREA) #1920,1080 -> 1280,720 -> 960,540
+
 	cv2.imshow("Output", image)
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
