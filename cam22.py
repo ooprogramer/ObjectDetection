@@ -11,22 +11,47 @@ import csv
 import module_mask_rcnn as rcnn
 import module_yolo as yolo
 
-
 Input_Video = "../video/22.mp4"		#video file open
-csv_file = open('csv/cam22.csv', 'w')	#csv file init open
+open('csv/cam22.csv', 'w+')	#csv file init open
 
-#background image setting
-first_frame = cv2.imread("image/22.png")
-first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
-first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
+#preprocess 'yolo = 0' or 'rcnn = 1'
+global process 
+process = 0
+
+def open_csv():
+    csv_file = open('csv/cam22.csv', 'w')	#csv file init open
+    return csv_file
+
+def parkinglot(vertices):
+    #parking line setting (left-up -> left-down -> right-up -> right-down)
+    vertices1 = [[[650, 300], [750, 300], [810, 210], [745, 210]]]	#left-up / C29
+    vertices2 = [[[260, 780], [480, 800], [720, 340], [620, 340]]]	#left-down / C28
+    vertices3 = [[[1120, 210], [1060, 210], [1150, 330], [1240, 330]]]	#right-up / D29
+    vertices4 = [[[1270, 360], [1170, 360], [1450, 800], [1660, 800]]]	#right-down / D28
+    pos = ['C29','C28','D29','D28']		#parking area name
+    vertices = [vertices1, vertices2, vertices3, vertices4]
+    return vertices, pos
+
+def parkinglot_piece(frame, area):
+    #parking area setting (left-up -> left-down -> right-up -> right-down)
+    a = frame[150:330, 400:750]
+    b = frame[300:800, 0:600]
+    c = frame[170:330, 1100:1400]
+    d = frame[250:800, 1280:1920]
+    area = [a,b,c,d]
+    return area
 
 def main():
     fps = FPS().start()
     cap = cv2.VideoCapture(Input_Video)
     (grabbed, frame) = cap.read()
 
+    #make background frame
+    first_frame = frame.copy()
+    first_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+    first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
+
     f_num = 0
-    process = 0	#yolo = 0, rcnn = 1
 
     #parking area variable
     RED_cnt_1 = 0; BLUE_cnt_1 = 0
@@ -41,21 +66,14 @@ def main():
     RED_cnt_4 = 0; BLUE_cnt_4 = 0
     initBB_4 = None; tracker_4 = None
 
-    #parking area setting (left-up -> left-down -> right-up -> right-down)
-    vertices1 = [[[650, 300], [750, 300], [810, 210], [745, 210]]]	#left-up / C29
-    vertices2 = [[[250, 780], [480, 800], [720, 340], [620, 340]]]	#left-down / C28
-    vertices3 = [[[1140, 230], [1080, 230], [1150, 330], [1240, 330]]]	#right-up / D29
-    vertices4 = [[[1270, 360], [1170, 360], [1450, 800], [1660, 800]]]	#right-down / D28
-    area = []
-    area = reset(frame, area)
-    pos = ['C29','C28','D29','D28']		#parking area name
+    vertices = []; vertices, pos = parkinglot(vertices)
+    area = []; area = parkinglot_piece(frame, area)
     l_up=0; l_down=0; r_up=0; r_down=0;		#parking area counting variable
-    l_up, l_down, r_up, r_down = preprocess(frame, process, area)	#already parking car counting
-
+    l_up, l_down, r_up, r_down = preprocess(frame, area)	#already parking car counting
     yolo.YOLOTINYINIT()	#tiny yolo initialization
 
     while(cap.isOpened()):
-        csv_file = open('csv/cam22.csv', 'w')	#csv file open
+        csv_file = open_csv()	#csv file open
         wr = csv.writer(csv_file, delimiter=' ')
         f_num =f_num +1
 
@@ -69,8 +87,8 @@ def main():
 
         #error exception
         if (l_up<0 or l_up>3 or l_down<0 or l_down>3 or r_up<0 or r_up>3 or r_down<0 or r_down>3):
-            area = reset(frame,area)
-            l_up,l_down,r_up,r_down = error_detection(process,area,l_up,l_down,r_up,r_down)
+            area = parkinglot_piece(frame,area)
+            l_up,l_down,r_up,r_down = error_detection(area,l_up,l_down,r_up,r_down)
             yolo.YOLOTINYINIT()
 
         if f_num % 2== 0: #detection per two frame
@@ -82,9 +100,8 @@ def main():
             park_cnt = [l_up,l_down,r_up,r_down]
             RED_cnt = [RED_cnt_1, RED_cnt_2, RED_cnt_3, RED_cnt_4]
             BLUE_cnt = [BLUE_cnt_1, BLUE_cnt_2, BLUE_cnt_3, BLUE_cnt_4]
-            vertice = [vertices1, vertices2, vertices3, vertices4]
 
-            Substracted = substraction(frame) #background image
+            Substracted = substraction(frame, first_gray) #background image
 
             layerOutputs, start, end = yolo.YOLO_Detect(frame) #yolo detection
 
@@ -99,28 +116,28 @@ def main():
             
             #left up
             tracker_1, initBB_1, RED_cnt_1, BLUE_cnt_1 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_1, frame, tracker_1, Substracted,\
-                                      RED_cnt_1, BLUE_cnt_1, vertices1)
+                                      RED_cnt_1, BLUE_cnt_1, vertices[0])
             l_up, temp_r_1, temp_b_1 = park_count(park_cnt[0], temp_r_1, temp_b_1, RED_cnt_1, BLUE_cnt_1)
 
             #left down
             tracker_2, initBB_2, RED_cnt_2, BLUE_cnt_2 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_2, frame, tracker_2, Substracted,\
-                                      RED_cnt_2, BLUE_cnt_2, vertices2)
+                                      RED_cnt_2, BLUE_cnt_2, vertices[1])
             l_down, temp_r_2, temp_b_2 = park_count(park_cnt[1], temp_r_2, temp_b_2, RED_cnt_2, BLUE_cnt_2)
 
             #right up
             tracker_3, initBB_3, RED_cnt_3, BLUE_cnt_3 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_3, frame, tracker_3, Substracted,\
-                                      RED_cnt_3, BLUE_cnt_3, vertices3)
+                                      RED_cnt_3, BLUE_cnt_3, vertices[2])
             r_up, temp_r_2, temp_b_2 = park_count(park_cnt[2], temp_r_3, temp_b_3, RED_cnt_3, BLUE_cnt_3)
 
             #right down
             tracker_4, initBB_4, RED_cnt_4, BLUE_cnt_4 = Passing_Counter_Zone(Vehicle_x, Vehicle_y, Vehicle_w, Vehicle_h, initBB_4, frame, tracker_4, Substracted,\
-                                      RED_cnt_4, BLUE_cnt_4, vertices4)
+                                      RED_cnt_4, BLUE_cnt_4, vertices[3])
             r_down, temp_r_2, temp_b_2 = park_count(park_cnt[3], temp_r_4, temp_b_4, RED_cnt_4, BLUE_cnt_4)
 
             #draw lines
             for i in range(0,4):
-                draw_line(frame, vertice[i], RED_cnt[i], BLUE_cnt[i])
-                pts = detecting_zone(vertice[i])
+                draw_line(frame, vertices[i], RED_cnt[i], BLUE_cnt[i])
+                pts = detecting_zone(vertices[i])
                 cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
 
             fps.update()
@@ -133,9 +150,10 @@ def main():
             cv2.putText(frame, "Frame : " + "{}".format(f_num), (1500, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.5,(200, 200, 200), 2)
 
             frame = cv2.resize(frame, (960, 540), interpolation=cv2.INTER_AREA) #1920,1080 -> 1280,720 -> 960,540
-            #Substracted = cv2.resize(Substracted , (960, 540), interpolation=cv2.INTER_CUBIC)
+            Substracted = cv2.resize(Substracted , (960, 540), interpolation=cv2.INTER_CUBIC)
 
             cv2.imshow("frame", frame)
+            #cv2.imshow("sub", Substracted)
             wr.writerow([park_cnt[0], park_cnt[1], park_cnt[2], park_cnt[3]])
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -144,15 +162,6 @@ def main():
     cap.release()
     
     return
-
-def reset(frame, area):
-    #parking area setting (left-up -> left-down -> right-up -> right-down)
-    a = frame[150:330, 400:750]
-    b = frame[300:800, 0:600]
-    c = frame[170:330, 1100:1400]
-    d = frame[250:800, 1280:1920]
-    area = [a,b,c,d]
-    return area
 
 def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tracker,Substracted,RED_cnt,BLUE_cnt,vertices):
     # Detecting Zone
@@ -258,7 +267,7 @@ def Passing_Counter_Zone(Vehicle_x,Vehicle_y,Vehicle_w,Vehicle_h,initBB,frame,tr
                     tracker = cv2.TrackerCSRT_create()
     return tracker, initBB,RED_cnt, BLUE_cnt
 
-def error_detection(process, area, l_up,l_down,r_up,r_down):
+def error_detection(area, l_up,l_down,r_up,r_down):
     if (l_up<0 or l_up>3):
         if process == 0: l_up = yolo_preprocess(area[0])
         else: l_up = rcnn_preprocess(area[0])
@@ -275,7 +284,7 @@ def error_detection(process, area, l_up,l_down,r_up,r_down):
     return l_up,l_down,r_up,r_down
 
 #기존에 주차되어 있는 차량 카운팅
-def preprocess(frame, process, area):
+def preprocess(frame, area):
     num_a=0;num_b=0;num_c=0;num_d=0; #counting variable
     num = [num_a,num_b,num_c,num_d]
 
@@ -287,14 +296,14 @@ def preprocess(frame, process, area):
             num[i] = rcnn_preprocess(area[i])
     return num[0], num[1], num[2], num[3]
 
-def yolo_preprocess(area):
-    yolo.YOLOINIT()
-    number = car_number(area)
-    return number
-
 def rcnn_preprocess(area):
     rcnn.init()
     _,_,number = rcnn.detect(area)
+    return number
+
+def yolo_preprocess(area):
+    yolo.YOLOINIT()
+    number = car_number(area)
     return number
 
 #전처리 yolo detection
@@ -315,7 +324,7 @@ def car_number(frame):
     number = len(idxs)
     return number
 
-def substraction(frame):
+def substraction(frame,first_gray):
     #Background Substraction
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray_frame = cv2.GaussianBlur(gray_frame, (5, 5), 0)
@@ -326,6 +335,7 @@ def substraction(frame):
     mask3 = cv2.cvtColor(difference, cv2.COLOR_GRAY2BGR)  # 3 channel mask
     Substracted = cv2.bitwise_and(frame, mask3)
     return Substracted
+
 
 def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
     # Red_Line
@@ -338,6 +348,7 @@ def draw_line(frame, vertices, RED_cnt, BLUE_cnt):
 
 def detecting_zone(vertices):
     # Detecting Zone
+    # vertices[0][0][0]-> left red / vertices[0][3][0]-> right red / vertices[0][1][0]-> left blue / vertices[0][2][0]-> right blue
     pts = np.array([[vertices[0][1][0] + int(2 / 3 * (vertices[0][0][0] - vertices[0][1][0])), vertices[0][0][1] + int(1 / 3 * (vertices[0][1][1] - vertices[0][0][1]))], \
                       [vertices[0][1][0] + int(1 / 3 * (vertices[0][0][0] - vertices[0][1][0])), vertices[0][0][1] + int(2 / 3 * (vertices[0][1][1] - vertices[0][0][1]))], \
                       [vertices[0][3][0] + int(2 / 3 * (vertices[0][2][0] - vertices[0][3][0])), vertices[0][3][1] + int(2 / 3 * (vertices[0][2][1] - vertices[0][3][1]))], \
